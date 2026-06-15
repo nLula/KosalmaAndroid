@@ -29,13 +29,13 @@ function TabIcon({ name, focused }: { name: string; focused: boolean }) {
   return (
     <View style={[tab.item, focused && tab.itemActive]}>
       <Text style={[tab.icon, focused && tab.iconActive]}>{ICONS[name] ?? '•'}</Text>
-      <Text style={[tab.label, focused && tab.labelActive]}>{SHORT[name]}</Text>
+      <Text style={[tab.label, focused && tab.labelActive]} numberOfLines={1}>{SHORT[name]}</Text>
     </View>
   );
 }
 
 const tab = StyleSheet.create({
-  item:        { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 5, borderRadius: R.md, gap: 2, minWidth: 52, borderWidth: 1.5, borderColor: 'transparent' },
+  item:        { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, paddingVertical: 5, borderRadius: R.md, gap: 2, minWidth: 44, borderWidth: 1.5, borderColor: 'transparent' },
   itemActive:  { borderColor: C.brand },
   icon:        { fontSize: 20, opacity: 0.5 },
   iconActive:  { opacity: 1 },
@@ -73,7 +73,7 @@ export default function App() {
               ...S.md,
               shadowOffset: { width: 0, height: -4 },
               height: 68,
-              paddingHorizontal: 6,
+              paddingHorizontal: 2,
               paddingBottom: 8,
               paddingTop: 6,
             },
