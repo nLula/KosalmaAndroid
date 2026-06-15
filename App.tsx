@@ -35,12 +35,12 @@ function TabIcon({ name, focused }: { name: string; focused: boolean }) {
 }
 
 const tab = StyleSheet.create({
-  item:        { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 5, borderRadius: R.md, gap: 2, minWidth: 52 },
-  itemActive:  { backgroundColor: C.brand },
+  item:        { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 5, borderRadius: R.md, gap: 2, minWidth: 52, borderWidth: 1.5, borderColor: 'transparent' },
+  itemActive:  { borderColor: C.brand },
   icon:        { fontSize: 20, opacity: 0.5 },
   iconActive:  { opacity: 1 },
   label:       { fontSize: 10, fontWeight: '600', color: C.textMuted },
-  labelActive: { color: C.white },
+  labelActive: { color: C.brand },
 });
 
 function TipTitle({ title }: { title: string }) {

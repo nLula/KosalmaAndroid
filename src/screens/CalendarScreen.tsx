@@ -40,7 +40,7 @@ export default function CalendarScreen() {
       <Stack.Screen
         name="CalendarMain"
         component={CalendarMainScreen}
-        options={{ headerTitle: () => <TipTitle title="Rota" /> }}
+        options={{ headerTitle: () => <TipTitle title="Calendar" /> }}
       />
       <Stack.Screen name="DayView" component={DayViewScreen} options={{ title: '' }} />
     </Stack.Navigator>
