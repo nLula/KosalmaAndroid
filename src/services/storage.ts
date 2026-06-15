@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { DEFAULT_CONFIG, AppConfig } from '../config/defaults';
+import { PAT as BUNDLED_PAT } from '../config/secrets';
 
 const KEYS = {
   CONFIG:       'kosalma_config',
@@ -13,8 +14,13 @@ const KEYS = {
 // ─── PAT helpers ─────────────────────────────────────────────────────────────
 
 async function loadPat(): Promise<string> {
-  try { return (await SecureStore.getItemAsync(KEYS.PAT)) ?? ''; }
-  catch { return ''; }
+  try {
+    const stored = await SecureStore.getItemAsync(KEYS.PAT);
+    if (stored) return stored;
+    // First launch: seed SecureStore from the bundled secrets file (gitignored)
+    if (BUNDLED_PAT) await SecureStore.setItemAsync(KEYS.PAT, BUNDLED_PAT);
+    return BUNDLED_PAT;
+  } catch { return BUNDLED_PAT; }
 }
 
 async function savePat(pat: string): Promise<void> {
