@@ -4,7 +4,8 @@ import { useNotes } from '../services/notesContext';
 import { loadConfig } from '../services/storage';
 import { DEFAULT_CONFIG, Employee } from '../config/defaults';
 import SyncBar from '../components/SyncBar';
-import { C, S, R, SP } from '../theme';
+import { useColors } from '../services/themeContext';
+import { S, R, SP, ColorsType } from '../theme';
 
 // ─── layout constants ─────────────────────────────────────────────────────────
 
@@ -99,7 +100,8 @@ function fmtH(h: number): string {
 
 // ─── sub-components ───────────────────────────────────────────────────────────
 
-function Bottle({ hours }: { hours: DayHours }) {
+function Bottle({ hours, C }: { hours: DayHours; C: ColorsType }) {
+  const bottle = React.useMemo(() => makeBottleStyles(C), [C]);
   if (hours.total === 0) {
     return <View style={bottle.outer}><View style={bottle.markers} /></View>;
   }
@@ -122,15 +124,17 @@ function Bottle({ hours }: { hours: DayHours }) {
   );
 }
 
-const bottle = StyleSheet.create({
-  outer:   { width: COL_BOTTLE - 2, height: BOTTLE_H, backgroundColor: C.bg, borderRadius: R.xs, borderWidth: 0.5, borderColor: C.border, overflow: 'hidden', justifyContent: 'center', alignItems: 'center', position: 'relative' },
-  markers: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  marker:  { position: 'absolute', top: 0, bottom: 0, width: 0.5, backgroundColor: C.border, opacity: 0.8 },
-  fillReg: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,169,157,0.45)', borderRadius: R.xs },
-  fillOT:  { position: 'absolute', top: 0, bottom: 0, backgroundColor: '#dc2626aa', borderRadius: R.xs },
-  label:   { position: 'relative', zIndex: 5, fontSize: 8, fontWeight: '700', color: C.textSub },
-  labelOT: { color: '#900' },
-});
+function makeBottleStyles(C: ColorsType) {
+  return StyleSheet.create({
+    outer:   { width: COL_BOTTLE - 2, height: BOTTLE_H, backgroundColor: C.bg, borderRadius: R.xs, borderWidth: 0.5, borderColor: C.border, overflow: 'hidden', justifyContent: 'center', alignItems: 'center', position: 'relative' },
+    markers: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+    marker:  { position: 'absolute', top: 0, bottom: 0, width: 0.5, backgroundColor: C.border, opacity: 0.8 },
+    fillReg: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,169,157,0.45)', borderRadius: R.xs },
+    fillOT:  { position: 'absolute', top: 0, bottom: 0, backgroundColor: '#dc2626aa', borderRadius: R.xs },
+    label:   { position: 'relative', zIndex: 5, fontSize: 8, fontWeight: '700', color: C.textSub },
+    labelOT: { color: '#900' },
+  });
+}
 
 // ─── screen ───────────────────────────────────────────────────────────────────
 
@@ -138,6 +142,9 @@ export default function HoursScreen() {
   const { notes, loading, error, lastSync, refresh } = useNotes();
   const [employees, setEmployees] = useState<Employee[]>(DEFAULT_CONFIG.employees);
   const [weekStart, setWeekStart] = useState(() => getMondayOf(new Date()));
+
+  const C = useColors();
+  const styles = React.useMemo(() => makeStyles(C), [C]);
 
   useEffect(() => {
     loadConfig().then(c => setEmployees(c.employees));
@@ -243,7 +250,7 @@ export default function HoursScreen() {
                         )}
                       </View>
                       <View style={[styles.bottleSubCol, { width: COL_BOTTLE }]}>
-                        <Bottle hours={h} />
+                        <Bottle hours={h} C={C} />
                         {h.battery && (
                           <Text style={styles.battery}>🔋{h.battery}</Text>
                         )}
@@ -281,41 +288,43 @@ export default function HoursScreen() {
 
 // ─── styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  container:      { flex: 1, backgroundColor: C.bg },
+function makeStyles(C: ColorsType) {
+  return StyleSheet.create({
+    container:      { flex: 1, backgroundColor: C.bg },
 
-  weekNav:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SP.md, paddingVertical: SP.sm, backgroundColor: C.surface, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
-  navArrow:       { fontSize: 28, color: C.brand },
-  weekLabel:      { fontSize: 13, fontWeight: '600', color: C.text },
+    weekNav:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SP.md, paddingVertical: SP.sm, backgroundColor: C.surface, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
+    navArrow:       { fontSize: 28, color: C.brand },
+    weekLabel:      { fontSize: 13, fontWeight: '600', color: C.text },
 
-  headerRow:      { flexDirection: 'row', backgroundColor: C.surfaceAlt, borderBottomWidth: 0.5, borderBottomColor: C.border },
-  hCell:          { paddingVertical: 8, justifyContent: 'center', alignItems: 'center' },
-  hCellEmp:       { borderLeftWidth: 0.5, borderLeftColor: C.border },
-  empName:        { fontSize: 12, fontWeight: '700', color: C.textSub },
+    headerRow:      { flexDirection: 'row', backgroundColor: C.surfaceAlt, borderBottomWidth: 0.5, borderBottomColor: C.border },
+    hCell:          { paddingVertical: 8, justifyContent: 'center', alignItems: 'center' },
+    hCellEmp:       { borderLeftWidth: 0.5, borderLeftColor: C.border },
+    empName:        { fontSize: 12, fontWeight: '700', color: C.textSub },
 
-  dataRow:        { flexDirection: 'row', minHeight: ROW_H, borderBottomWidth: 0.5, borderBottomColor: C.borderLight, backgroundColor: C.surface },
-  dataRowToday:   { backgroundColor: C.brandPale },
-  dataRowWeekend: { backgroundColor: '#FDF9F9' },
+    dataRow:        { flexDirection: 'row', minHeight: ROW_H, borderBottomWidth: 0.5, borderBottomColor: C.borderLight, backgroundColor: C.surface },
+    dataRowToday:   { backgroundColor: C.brandPale },
+    dataRowWeekend: { backgroundColor: C.surfaceAlt },
 
-  dateCol:        { width: COL_DATE },
-  dateCell:       { alignItems: 'center', justifyContent: 'center', paddingVertical: 6 },
-  dayAbbr:        { fontSize: 10, fontWeight: '700', color: C.textHint, textTransform: 'uppercase' },
-  dayNum:         { fontSize: 22, fontWeight: '700', color: C.textHint, lineHeight: 26 },
-  todayAccent:    { color: C.brand },
-  weekendAccent:  { color: '#C0A0A0' },
+    dateCol:        { width: COL_DATE },
+    dateCell:       { alignItems: 'center', justifyContent: 'center', paddingVertical: 6 },
+    dayAbbr:        { fontSize: 10, fontWeight: '700', color: C.textHint, textTransform: 'uppercase' },
+    dayNum:         { fontSize: 22, fontWeight: '700', color: C.textHint, lineHeight: 26 },
+    todayAccent:    { color: C.brand },
+    weekendAccent:  { color: '#C0A0A0' },
 
-  empGroup:       { flexDirection: 'row', alignItems: 'center', borderLeftWidth: 0.5, borderLeftColor: C.borderLight },
-  daySubCol:      { alignItems: 'center', justifyContent: 'center', paddingVertical: 4, gap: 1 },
-  bottleSubCol:   { alignItems: 'center', justifyContent: 'center', gap: 3 },
-  timeVal:        { fontSize: 10, color: C.textSub, fontWeight: '500' },
-  timeSep:        { fontSize: 8, color: C.textHint },
-  noData:         { fontSize: 14, color: C.border },
-  battery:        { fontSize: 8, color: C.textMuted },
+    empGroup:       { flexDirection: 'row', alignItems: 'center', borderLeftWidth: 0.5, borderLeftColor: C.borderLight },
+    daySubCol:      { alignItems: 'center', justifyContent: 'center', paddingVertical: 4, gap: 1 },
+    bottleSubCol:   { alignItems: 'center', justifyContent: 'center', gap: 3 },
+    timeVal:        { fontSize: 10, color: C.textSub, fontWeight: '500' },
+    timeSep:        { fontSize: 8, color: C.textHint },
+    noData:         { fontSize: 14, color: C.border },
+    battery:        { fontSize: 8, color: C.textMuted },
 
-  totalRow:       { flexDirection: 'row', borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.surfaceAlt },
-  totalDateCell:  { width: COL_DATE, alignItems: 'center', justifyContent: 'center', paddingVertical: 10 },
-  totalLabel:     { fontSize: 16, fontWeight: '700', color: C.textMuted },
-  totalEmpCell:   { flexDirection: 'row', alignItems: 'center', borderLeftWidth: 0.5, borderLeftColor: C.border, paddingVertical: 8 },
-  totalHours:     { fontSize: 13, fontWeight: '700', color: C.text, textAlign: 'center' },
-  totalOT:        { fontSize: 10, color: C.overtime, fontWeight: '600', textAlign: 'center' },
-});
+    totalRow:       { flexDirection: 'row', borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.surfaceAlt },
+    totalDateCell:  { width: COL_DATE, alignItems: 'center', justifyContent: 'center', paddingVertical: 10 },
+    totalLabel:     { fontSize: 16, fontWeight: '700', color: C.textMuted },
+    totalEmpCell:   { flexDirection: 'row', alignItems: 'center', borderLeftWidth: 0.5, borderLeftColor: C.border, paddingVertical: 8 },
+    totalHours:     { fontSize: 13, fontWeight: '700', color: C.text, textAlign: 'center' },
+    totalOT:        { fontSize: 10, color: C.overtime, fontWeight: '600', textAlign: 'center' },
+  });
+}

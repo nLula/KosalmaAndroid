@@ -5,7 +5,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNotes, getNoteRecords } from '../../services/notesContext';
 import { CalendarStackParams } from '../CalendarScreen';
 import SyncBar from '../../components/SyncBar';
-import { C, R, SP } from '../../theme';
+import { useColors } from '../../services/themeContext';
+import { R, SP, ColorsType } from '../../theme';
 
 type Nav = NativeStackNavigationProp<CalendarStackParams, 'CalendarMain'>;
 
@@ -18,6 +19,9 @@ const MONTH_NAMES = [
 export default function CalendarMainScreen() {
   const nav = useNavigation<Nav>();
   const { notes, loading, error, lastSync, refresh } = useNotes();
+
+  const C = useColors();
+  const styles = React.useMemo(() => makeStyles(C), [C]);
 
   const today = new Date();
   const [year,  setYear]  = useState(today.getFullYear());
@@ -94,7 +98,7 @@ export default function CalendarMainScreen() {
                   {dots.length > 0 && (
                     <View style={styles.dotGrid}>
                       {dots.slice(0, 6).map(({ key, color }) => (
-                        <View key={key} style={[styles.dot, { backgroundColor: dotColor(color) }]} />
+                        <View key={key} style={[styles.dot, { backgroundColor: dotColor(color, C.brand) }]} />
                       ))}
                     </View>
                   )}
@@ -159,7 +163,7 @@ export function formatDayTitle(dateStr: string): string {
   const mo = parseInt(dateStr.slice(4, 6), 10) - 1;
   const d  = parseInt(dateStr.slice(6, 8), 10);
   return new Date(y, mo, d).toLocaleDateString([], {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    month: 'long', day: 'numeric', year: 'numeric',
   });
 }
 
@@ -177,27 +181,29 @@ function buildMonth(year: number, month: number): (number | null)[][] {
   return weeks;
 }
 
-function dotColor(color: string): string {
-  if (!color || color === 'none' || color === 'FFFFFF' || color === 'transparent') return C.brand;
+function dotColor(color: string, brand: string): string {
+  if (!color || color === 'none' || color === 'FFFFFF' || color === 'transparent') return brand;
   return `#${color}`;
 }
 
 // ─── styles ─────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  container:      { flex: 1, backgroundColor: C.bg },
-  content:        { paddingHorizontal: 4, paddingBottom: SP.lg },
-  monthRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SP.sm, paddingVertical: SP.md },
-  navArrow:       { fontSize: 32, color: C.brand, paddingHorizontal: 10 },
-  monthTitle:     { fontSize: 20, fontWeight: '700', color: C.text },
-  row:            { flexDirection: 'row' },
-  dayName:        { flex: 1, textAlign: 'center', fontSize: 12, color: C.textMuted, fontWeight: '600', paddingVertical: SP.sm },
-  dayNameWeekend: { color: '#C0A0A0' },
-  cell:           { flex: 1, alignItems: 'center', paddingVertical: 10, minHeight: 72, borderRadius: R.sm },
-  cellToday:      { backgroundColor: C.brandLight },
-  dayNum:         { fontSize: 17, color: C.textSub },
-  dayNumToday:    { color: C.brand, fontWeight: '700' },
-  dayNumWeekend:  { color: '#C0A0A0' },
-  dotGrid:        { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 2, marginTop: 5, maxWidth: 36 },
-  dot:            { width: 5, height: 5, borderRadius: 3 },
-});
+function makeStyles(C: ColorsType) {
+  return StyleSheet.create({
+    container:      { flex: 1, backgroundColor: C.bg },
+    content:        { paddingHorizontal: 4, paddingBottom: SP.lg },
+    monthRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SP.sm, paddingVertical: SP.md },
+    navArrow:       { fontSize: 32, color: C.brand, paddingHorizontal: 10 },
+    monthTitle:     { fontSize: 20, fontWeight: '700', color: C.text },
+    row:            { flexDirection: 'row' },
+    dayName:        { flex: 1, textAlign: 'center', fontSize: 12, color: C.textMuted, fontWeight: '600', paddingVertical: SP.sm },
+    dayNameWeekend: { color: '#C0A0A0' },
+    cell:           { flex: 1, alignItems: 'center', paddingVertical: 10, minHeight: 72, borderRadius: R.sm },
+    cellToday:      { backgroundColor: C.brandLight },
+    dayNum:         { fontSize: 17, color: C.textSub },
+    dayNumToday:    { color: C.brand, fontWeight: '700' },
+    dayNumWeekend:  { color: '#C0A0A0' },
+    dotGrid:        { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 2, marginTop: 5, maxWidth: 36 },
+    dot:            { width: 5, height: 5, borderRadius: 3 },
+  });
+}

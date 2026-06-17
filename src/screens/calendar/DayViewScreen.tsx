@@ -8,7 +8,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNotes, NoteRecord, getNoteRecords } from '../../services/notesContext';
 import { CalendarStackParams } from '../CalendarScreen';
 import { parseWorkSlots, generateSlotKey, formatDayTitle, WorkSlot } from './CalendarMainScreen';
-import { C, S, R, SP } from '../../theme';
+import { useColors } from '../../services/themeContext';
+import { S, R, SP, ColorsType } from '../../theme';
 
 type Nav   = NativeStackNavigationProp<CalendarStackParams, 'DayView'>;
 type Route = RouteProp<CalendarStackParams, 'DayView'>;
@@ -29,6 +30,9 @@ export default function DayViewScreen() {
   const { dateStr } = route.params;
   const { notes, updateNote } = useNotes();
 
+  const C = useColors();
+  const styles = React.useMemo(() => makeStyles(C), [C]);
+
   const [activeColorId,    setActiveColorId]    = useState<string | null>(null);
   const [showAssign,       setShowAssign]       = useState(false);
   const [pendingAssignId,  setPendingAssignId]  = useState<string | null>(null);
@@ -37,8 +41,15 @@ export default function DayViewScreen() {
   const [selectedPrefixes, setSelectedPrefixes] = useState<Set<string>>(new Set());
 
   useLayoutEffect(() => {
-    nav.setOptions({ title: formatDayTitle(dateStr) });
-  }, [dateStr]);
+    nav.setOptions({
+      title: formatDayTitle(dateStr),
+      headerRight: () => (
+        <TouchableOpacity style={styles.headerAssignBtn} onPress={openAssignModal} activeOpacity={0.7}>
+          <Text style={styles.headerAssignText}>+ Assign task</Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [dateStr, styles]);
 
   const dayCards = useMemo<DayCard[]>(() => {
     const result: DayCard[] = [];
@@ -159,23 +170,26 @@ export default function DayViewScreen() {
         )}
 
         {dayCards.map(({ noteId, record, slot }) => {
-          const cardKey = slot.slotKey;
-          const dotBg   = slotColor(slot.color);
+          const cardKey  = slot.slotKey;
+          const bg       = slotColor(slot.color, C.border);
+          const isLight  = slot.color === 'FFF200';
+          const tagLabel = (record.tag || '—').slice(0, 4).toUpperCase();
+          const sub      = [record.tag, record.project].filter(Boolean).join(' · ');
           return (
             <View key={cardKey} style={styles.card}>
               <View style={styles.cardTop}>
                 <TouchableOpacity
-                  style={[styles.colorDot, { backgroundColor: dotBg }, activeColorId === cardKey && styles.colorDotActive]}
+                  style={[styles.badge, { backgroundColor: bg, borderColor: bg }, activeColorId === cardKey && styles.badgeActive]}
                   onPress={() => setActiveColorId(activeColorId === cardKey ? null : cardKey)}
-                />
+                  activeOpacity={0.75}
+                >
+                  <Text style={[styles.badgeText, { color: isLight ? C.text : C.white }]}>{tagLabel}</Text>
+                </TouchableOpacity>
                 <View style={styles.cardInfo}>
-                  <Text style={styles.cardHeader} numberOfLines={2}>
+                  <Text style={styles.cardHeader} numberOfLines={1}>
                     {record.header?.replace(/^#+\s*/, '') || '(no title)'}
                   </Text>
-                  <View style={styles.pills}>
-                    <View style={styles.tagPill}><Text style={styles.tagText}>{record.tag}</Text></View>
-                    {record.project ? <Text style={styles.project}>{record.project}</Text> : null}
-                  </View>
+                  {sub ? <Text style={styles.cardSub} numberOfLines={1}>{sub}</Text> : null}
                 </View>
                 {savingSlot === cardKey
                   ? <ActivityIndicator size="small" color={C.brand} style={{ marginLeft: 8 }} />
@@ -183,7 +197,7 @@ export default function DayViewScreen() {
                     <TouchableOpacity
                       onPress={() => handleRemove(noteId, record, slot.slotKey)}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      style={{ marginLeft: 8 }}
+                      style={{ marginLeft: 8, padding: 4 }}
                     >
                       <Text style={styles.removeX}>✕</Text>
                     </TouchableOpacity>
@@ -200,7 +214,7 @@ export default function DayViewScreen() {
                       onPress={() => handleColorChange(noteId, record, slot.slotKey, value)}
                       style={[styles.colorChip, slot.color === value && styles.colorChipSelected]}
                     >
-                      <View style={[styles.colorChipSwatch, { backgroundColor: slotColor(value) }]} />
+                      <View style={[styles.colorChipSwatch, { backgroundColor: slotColor(value, C.border) }]} />
                       <Text style={styles.colorChipLabel}>{label}</Text>
                     </TouchableOpacity>
                   ))}
@@ -210,12 +224,6 @@ export default function DayViewScreen() {
           );
         })}
       </ScrollView>
-
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.assignBtn} onPress={openAssignModal}>
-          <Text style={styles.assignBtnText}>+ Assign note to this day</Text>
-        </TouchableOpacity>
-      </View>
 
       <Modal
         visible={showAssign}
@@ -295,7 +303,7 @@ export default function DayViewScreen() {
                             onPress={() => setPendingColor(value)}
                             style={[styles.colorChip, pendingColor === value && styles.colorChipSelected]}
                           >
-                            <View style={[styles.colorChipSwatch, { backgroundColor: slotColor(value) }]} />
+                            <View style={[styles.colorChipSwatch, { backgroundColor: slotColor(value, C.border) }]} />
                             <Text style={styles.colorChipLabel}>{label}</Text>
                           </TouchableOpacity>
                         ))}
@@ -316,63 +324,66 @@ export default function DayViewScreen() {
   );
 }
 
-function slotColor(color: string): string {
-  if (!color || color === 'none' || color === 'FFFFFF' || color === 'transparent') return C.border;
+function slotColor(color: string, border: string): string {
+  if (!color || color === 'none' || color === 'FFFFFF' || color === 'transparent') return border;
   return `#${color}`;
 }
 
-const styles = StyleSheet.create({
-  container:         { flex: 1, backgroundColor: C.bg },
-  content:           { padding: SP.md, paddingBottom: SP.lg },
-  empty:             { textAlign: 'center', marginTop: 60, color: C.textMuted, fontSize: 14, lineHeight: 22 },
+function makeStyles(C: ColorsType) {
+  return StyleSheet.create({
+    container:         { flex: 1, backgroundColor: C.bg },
+    content:           { padding: SP.md, paddingBottom: SP.lg },
+    empty:             { textAlign: 'center', marginTop: 60, color: C.textMuted, fontSize: 14, lineHeight: 22 },
 
-  card:              { backgroundColor: C.surface, borderRadius: R.md, marginBottom: SP.sm, overflow: 'hidden', ...S.sm },
-  cardTop:           { flexDirection: 'row', alignItems: 'center', padding: SP.sm + 4 },
-  colorDot:          { width: 22, height: 22, borderRadius: 11, marginRight: 12, borderWidth: 2, borderColor: 'transparent' },
-  colorDotActive:    { borderColor: C.brand },
-  cardInfo:          { flex: 1 },
-  cardHeader:        { fontSize: 15, color: C.text, fontWeight: '600' },
-  pills:             { flexDirection: 'row', alignItems: 'center', marginTop: 5, gap: 6, flexWrap: 'wrap' },
-  tagPill:           { backgroundColor: C.brandLight, borderRadius: R.pill, paddingHorizontal: 8, paddingVertical: 2 },
-  tagText:           { fontSize: 11, color: C.brand, fontWeight: '700' },
-  project:           { fontSize: 11, color: C.textMuted },
-  removeX:           { fontSize: 16, color: C.textHint, padding: 2 },
+    card:              { backgroundColor: C.surface, borderRadius: R.md, marginBottom: SP.sm, ...S.sm },
+    cardTop:           { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SP.md, paddingVertical: SP.sm + 2 },
+    badge:             { width: 36, height: 36, borderRadius: R.xs, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+    badgeActive:       { opacity: 0.75 },
+    badgeText:         { fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
+    cardInfo:          { flex: 1 },
+    cardHeader:        { fontSize: 14, color: C.text, fontWeight: '500' },
+    cardSub:           { fontSize: 11, color: C.textMuted, marginTop: 2 },
+    removeX:           { fontSize: 15, color: C.textHint },
 
-  colorPickerRow:    { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', paddingHorizontal: SP.sm + 4, paddingBottom: SP.sm + 4, gap: 6, backgroundColor: C.surfaceAlt, borderTopWidth: 0.5, borderTopColor: C.borderLight },
-  colorPickerLabel:  { fontSize: 11, color: C.textMuted, fontWeight: '600', marginRight: 2 },
-  colorChip:         { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: R.pill, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.surface },
-  colorChipSelected: { borderColor: C.brand, backgroundColor: C.brandLight },
-  colorChipSwatch:   { width: 12, height: 12, borderRadius: 6, borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.1)' },
-  colorChipLabel:    { fontSize: 11, color: C.textSub },
+    colorPickerRow:    { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', paddingHorizontal: SP.sm + 4, paddingBottom: SP.sm + 4, gap: 6, backgroundColor: C.surfaceAlt, borderTopWidth: 0.5, borderTopColor: C.borderLight },
+    colorPickerLabel:  { fontSize: 11, color: C.textMuted, fontWeight: '600', marginRight: 2 },
+    colorChip:         { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: R.pill, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.surface },
+    colorChipSelected: { borderColor: C.brand, backgroundColor: C.brandLight },
+    colorChipSwatch:   { width: 12, height: 12, borderRadius: 6, borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.1)' },
+    colorChipLabel:    { fontSize: 11, color: C.textSub },
 
-  footer:            { borderTopWidth: 0.5, borderTopColor: C.borderLight, padding: SP.sm, backgroundColor: C.surface },
-  assignBtn:         { backgroundColor: C.brand, borderRadius: R.md, padding: 14, alignItems: 'center' },
-  assignBtnText:     { color: C.white, fontWeight: '700', fontSize: 15 },
+    headerAssignBtn:   { marginRight: 0, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: C.surface, borderRadius: R.sm, borderWidth: 1.5, borderColor: C.brand },
+    headerAssignText:  { color: C.text, fontWeight: '600', fontSize: 13 },
 
-  overlay:           { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet:             { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: C.surface, borderTopLeftRadius: R.lg, borderTopRightRadius: R.lg, paddingBottom: 32 },
-  sheetHeader:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: SP.md, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
-  sheetTitle:        { fontSize: 16, fontWeight: '700', color: C.text },
-  sheetClose:        { fontSize: 18, color: C.textHint },
+    overlay:           { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.25)' },
+    sheet:             { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: C.surface, borderTopLeftRadius: R.lg, borderTopRightRadius: R.lg, paddingBottom: 32 },
+    sheetHeader:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SP.md, paddingVertical: SP.sm + 2, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
+    sheetTitle:        { fontSize: 15, fontWeight: '600', color: C.text },
+    sheetClose:        { fontSize: 16, color: C.textMuted, padding: 2 },
 
-  prefixRow:         { paddingHorizontal: SP.md, paddingVertical: SP.sm, borderBottomWidth: 0.5, borderBottomColor: C.borderLight, backgroundColor: C.surfaceAlt },
-  prefixLabel:       { fontSize: 11, fontWeight: '700', color: C.textMuted, marginBottom: 7, textTransform: 'uppercase', letterSpacing: 0.4 },
-  prefixChips:       { gap: 6 },
-  prefixChip:        { paddingHorizontal: 13, paddingVertical: 6, borderRadius: R.pill, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.surface },
-  prefixChipActive:  { borderColor: C.brand, backgroundColor: C.brandLight },
-  prefixChipText:    { fontSize: 13, fontWeight: '600', color: C.textMuted },
-  prefixChipTextActive: { color: C.brand },
+    prefixRow:         { paddingHorizontal: SP.md, paddingVertical: SP.sm, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
+    prefixLabel:       { fontSize: 10, fontWeight: '700', color: C.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.4 },
+    prefixChips:       { gap: 6 },
+    prefixChip:        { paddingHorizontal: 11, paddingVertical: 4, borderRadius: R.pill, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface },
+    prefixChipActive:  { borderColor: C.brand },
+    prefixChipText:    { fontSize: 12, fontWeight: '500', color: C.textMuted },
+    prefixChipTextActive: { color: C.brand, fontWeight: '600' },
 
-  sheetItem:         { flexDirection: 'row', alignItems: 'center', padding: SP.md, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
-  sheetItemPending:  { backgroundColor: C.brandPale },
-  sheetItemBody:     { flex: 1 },
-  sheetItemHeader:   { fontSize: 15, color: C.text },
-  expandIcon:        { fontSize: 12, color: C.textHint, marginLeft: 12 },
-  sheetEmpty:        { padding: 28, textAlign: 'center', color: C.textMuted, fontSize: 13 },
+    sheetItem:         { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SP.md, paddingVertical: SP.sm + 2, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
+    sheetItemPending:  { backgroundColor: C.brandPale },
+    sheetItemBody:     { flex: 1 },
+    sheetItemHeader:   { fontSize: 14, color: C.text },
+    expandIcon:        { fontSize: 11, color: C.textHint, marginLeft: 12 },
+    sheetEmpty:        { padding: 28, textAlign: 'center', color: C.textMuted, fontSize: 13 },
 
-  assignPicker:      { backgroundColor: C.brandPale, borderBottomWidth: 0.5, borderBottomColor: C.borderLight, padding: SP.sm + 4 },
-  assignPickerLabel: { fontSize: 11, color: C.textMuted, fontWeight: '600', marginBottom: 8 },
-  assignColorRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: SP.sm + 4 },
-  confirmBtn:        { backgroundColor: C.brand, borderRadius: R.sm, padding: 12, alignItems: 'center' },
-  confirmBtnText:    { color: C.white, fontWeight: '700', fontSize: 14 },
-});
+    pills:             { flexDirection: 'row', marginTop: 4, gap: 6 },
+    tagPill:           { backgroundColor: C.surfaceAlt, borderRadius: R.xs, paddingHorizontal: 6, paddingVertical: 2 },
+    tagText:           { fontSize: 10, color: C.textSub, fontWeight: '600' },
+
+    assignPicker:      { backgroundColor: C.bg, borderBottomWidth: 0.5, borderBottomColor: C.borderLight, padding: SP.sm + 4 },
+    assignPickerLabel: { fontSize: 10, color: C.textMuted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 },
+    assignColorRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: SP.sm + 4 },
+    confirmBtn:        { borderWidth: 1.5, borderColor: C.brand, borderRadius: R.sm, padding: 10, alignItems: 'center', backgroundColor: C.surface },
+    confirmBtnText:    { color: C.text, fontWeight: '600', fontSize: 13 },
+  });
+}

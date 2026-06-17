@@ -1,6 +1,6 @@
 // ─── Kosalma Design System ────────────────────────────────────────────────────
 
-export const C = {
+export const lightC = {
   // Brand
   brand:       '#00A99D',
   brandDark:   '#007D74',
@@ -38,6 +38,37 @@ export const C = {
   white:       '#FFFFFF',
   black:       '#000000',
 };
+
+export const darkC = {
+  brand:       '#00A99D',
+  brandDark:   '#007D74',
+  brandLight:  '#0D2E2C',
+  brandPale:   '#081E1D',
+  bg:          '#1A1917',
+  surface:     '#242220',
+  surfaceAlt:  '#2E2C29',
+  border:      '#3A3835',
+  borderLight: '#2E2C29',
+  text:        '#E8E5E1',
+  textSub:     '#B8B5B1',
+  textMuted:   '#9E9B97',
+  textHint:    '#6E6B67',
+  red:         '#EF3340',
+  green:       '#00A99D',
+  yellow:      '#FFC107',
+  blue:        '#00B5E2',
+  error:       '#EF4444',
+  success:     '#10B981',
+  warning:     '#F59E0B',
+  overtime:    '#DC2626',
+  white:       '#FFFFFF',
+  black:       '#000000',
+};
+
+export type ColorsType = typeof lightC;
+
+// Backwards-compat export — any file that hasn't been migrated yet still works
+export const C = lightC;
 
 export const S = {
   xs: {

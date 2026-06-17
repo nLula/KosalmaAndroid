@@ -4,6 +4,8 @@ import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNotes, NoteRecord } from '../../services/notesContext';
 import { NotesStackParams } from '../NotesScreen';
+import { useColors } from '../../services/themeContext';
+import { R, SP, ColorsType } from '../../theme';
 
 type Route = RouteProp<NotesStackParams, 'NoteDetail'>;
 type Nav   = NativeStackNavigationProp<NotesStackParams, 'NoteDetail'>;
@@ -13,6 +15,9 @@ export default function NoteDetailScreen() {
   const nav   = useNavigation<Nav>();
   const { id } = route.params;
   const { notes, updateNote } = useNotes();
+
+  const C = useColors();
+  const styles = React.useMemo(() => makeStyles(C), [C]);
 
   const record = notes[id] as NoteRecord;
   const [editing, setEditing]       = useState(false);
@@ -26,7 +31,7 @@ export default function NoteDetailScreen() {
         editing ? (
           <TouchableOpacity onPress={handleSave} style={styles.headerBtn} disabled={saving}>
             {saving
-              ? <ActivityIndicator color="#fff" size="small" />
+              ? <ActivityIndicator color={C.brand} size="small" />
               : <Text style={styles.headerBtnText}>Save</Text>
             }
           </TouchableOpacity>
@@ -37,7 +42,7 @@ export default function NoteDetailScreen() {
         )
       ),
     });
-  }, [editing, saving, description]);
+  }, [editing, saving, description, styles]);
 
   async function handleSave() {
     setSaving(true);
@@ -52,7 +57,7 @@ export default function NoteDetailScreen() {
   }
 
   if (!record) {
-    return <View style={styles.center}><Text>Note not found</Text></View>;
+    return <View style={styles.center}><Text style={styles.body}>Note not found</Text></View>;
   }
 
   return (
@@ -91,15 +96,17 @@ function parseDate(raw: string): string {
   return `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;
 }
 
-const styles = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: '#fff' },
-  content:      { padding: 16, paddingBottom: 40 },
-  center:       { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  meta:         { backgroundColor: '#f7f7f7', borderRadius: 8, padding: 12, marginBottom: 16, gap: 4 },
-  metaText:     { fontSize: 12, color: '#666' },
-  metaDate:     { fontSize: 12, color: '#00a99d', fontWeight: '600' },
-  body:         { fontSize: 15, color: '#222', lineHeight: 22 },
-  editor:       { fontSize: 15, color: '#222', lineHeight: 22, minHeight: 300, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10 },
-  headerBtn:    { marginRight: 12, paddingHorizontal: 8, paddingVertical: 4 },
-  headerBtnText:{ color: '#fff', fontWeight: '700', fontSize: 15 },
-});
+function makeStyles(C: ColorsType) {
+  return StyleSheet.create({
+    container:    { flex: 1, backgroundColor: C.bg },
+    content:      { padding: SP.md, paddingBottom: 40 },
+    center:       { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    meta:         { backgroundColor: C.surfaceAlt, borderRadius: R.sm, padding: 12, marginBottom: 16, gap: 4 },
+    metaText:     { fontSize: 12, color: C.textSub },
+    metaDate:     { fontSize: 12, color: C.brand, fontWeight: '600' },
+    body:         { fontSize: 15, color: C.text, lineHeight: 22 },
+    editor:       { fontSize: 15, color: C.text, lineHeight: 22, minHeight: 300, borderWidth: 1, borderColor: C.border, borderRadius: R.sm, padding: 10, backgroundColor: C.surface },
+    headerBtn:    { marginRight: 12, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: C.surface, borderRadius: R.sm, borderWidth: 1.5, borderColor: C.brand },
+    headerBtnText:{ color: C.text, fontWeight: '700', fontSize: 15 },
+  });
+}

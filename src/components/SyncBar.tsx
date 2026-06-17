@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
-import { C } from '../theme';
+import { useColors } from '../services/themeContext';
+import { ColorsType } from '../theme';
 
 type Props = { lastSync: string | null; loading: boolean; error: string | null };
 
@@ -10,6 +11,9 @@ function formatTime(iso: string): string {
 }
 
 export default function SyncBar({ lastSync, loading, error }: Props) {
+  const C = useColors();
+  const styles = React.useMemo(() => makeStyles(C), [C]);
+
   if (error) {
     return (
       <View style={[styles.bar, styles.errorBar]}>
@@ -31,10 +35,12 @@ export default function SyncBar({ lastSync, loading, error }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  bar:       { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 14, paddingVertical: 7, backgroundColor: C.surfaceAlt, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
-  dot:       { width: 6, height: 6, borderRadius: 3 },
-  text:      { fontSize: 11, color: C.textMuted, fontWeight: '500' },
-  errorBar:  { backgroundColor: '#FFF5F5' },
-  errorText: { fontSize: 11, color: C.error, fontWeight: '500', flex: 1 },
-});
+function makeStyles(C: ColorsType) {
+  return StyleSheet.create({
+    bar:       { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 14, paddingVertical: 7, backgroundColor: C.surfaceAlt, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
+    dot:       { width: 6, height: 6, borderRadius: 3 },
+    text:      { fontSize: 11, color: C.textMuted, fontWeight: '500' },
+    errorBar:  { backgroundColor: '#FFF5F5' },
+    errorText: { fontSize: 11, color: C.error, fontWeight: '500', flex: 1 },
+  });
+}

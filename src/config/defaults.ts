@@ -6,13 +6,14 @@ export const DEFAULT_CONFIG = {
     { name: 'KIA',    mac: 'C3:00:00:4B:05:9A' },
   ],
   github: {
-    pat:   '',   // stored in SecureStore, never hardcoded
+    pat:   '',
     owner: 'KosalmaTln',
     repo:  'Synch',
   },
   sync: {
     intervalMinutes: 15,
   },
+  appearance: 'system' as 'light' | 'dark' | 'system',
 };
 
 export type Employee = { name: string; mac: string };

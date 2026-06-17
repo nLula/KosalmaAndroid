@@ -5,7 +5,8 @@ import {
 } from 'react-native';
 import { loadConfig } from '../services/storage';
 import { fetchStatistics } from '../services/githubApi';
-import { C, S, R, SP } from '../theme';
+import { useColors } from '../services/themeContext';
+import { S, R, SP, ColorsType } from '../theme';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -42,7 +43,7 @@ function fmtNum(v: number): string {
 
 // ─── sub-components ──────────────────────────────────────────────────────────
 
-function SummaryTile({ label, value }: { label: string; value: string }) {
+function SummaryTile({ label, value, styles }: { label: string; value: string; styles: ReturnType<typeof makeStyles> }) {
   return (
     <View style={styles.summaryTile}>
       <Text style={styles.summaryValue}>{value}</Text>
@@ -59,9 +60,10 @@ type PickerModalProps = {
   renderItem: (item: string) => string;
   onSelect: (item: string) => void;
   onClose: () => void;
+  styles: ReturnType<typeof makeStyles>;
 };
 
-function PickerModal({ visible, title, items, selected, renderItem, onSelect, onClose }: PickerModalProps) {
+function PickerModal({ visible, title, items, selected, renderItem, onSelect, onClose, styles }: PickerModalProps) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose} />
@@ -111,6 +113,9 @@ export default function StatisticsScreen() {
   const [showMachine,   setShowMachine]   = useState(false);
   const [showDateFrom,  setShowDateFrom]  = useState(false);
   const [showDateTo,    setShowDateTo]    = useState(false);
+
+  const C = useColors();
+  const styles = React.useMemo(() => makeStyles(C), [C]);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
@@ -311,10 +316,10 @@ export default function StatisticsScreen() {
         </View>
 
         <View style={styles.summaryRow}>
-          <SummaryTile label="Works"    value={String(summary.count)} />
-          <SummaryTile label="Energy"   value={`${summary.energy.toFixed(2)} kWh`} />
-          <SummaryTile label="Duration" value={`${summary.duration.toFixed(0)} min`} />
-          <SummaryTile label="Area"     value={`${summary.area.toFixed(2)} m²`} />
+          <SummaryTile label="Works"    value={String(summary.count)} styles={styles} />
+          <SummaryTile label="Energy"   value={`${summary.energy.toFixed(2)} kWh`} styles={styles} />
+          <SummaryTile label="Duration" value={`${summary.duration.toFixed(0)} min`} styles={styles} />
+          <SummaryTile label="Area"     value={`${summary.area.toFixed(2)} m²`} styles={styles} />
         </View>
 
         {workIds.length > 0 && (
@@ -370,6 +375,7 @@ export default function StatisticsScreen() {
         renderItem={m => m}
         onSelect={selectMachine}
         onClose={() => setShowMachine(false)}
+        styles={styles}
       />
 
       <PickerModal
@@ -380,6 +386,7 @@ export default function StatisticsScreen() {
         renderItem={fmtDate}
         onSelect={d => { setDateFrom(d); setSelectedWorks(new Set()); setShowDateFrom(false); }}
         onClose={() => setShowDateFrom(false)}
+        styles={styles}
       />
 
       <PickerModal
@@ -390,6 +397,7 @@ export default function StatisticsScreen() {
         renderItem={fmtDate}
         onSelect={d => { setDateTo(d); setSelectedWorks(new Set()); setShowDateTo(false); }}
         onClose={() => setShowDateTo(false)}
+        styles={styles}
       />
     </View>
   );
@@ -397,61 +405,63 @@ export default function StatisticsScreen() {
 
 // ─── styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  container:       { flex: 1, backgroundColor: C.bg },
-  content:         { paddingBottom: SP.xl },
+function makeStyles(C: ColorsType) {
+  return StyleSheet.create({
+    container:       { flex: 1, backgroundColor: C.bg },
+    content:         { paddingBottom: SP.xl },
 
-  center:          { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SP.lg, backgroundColor: C.bg },
-  loadingText:     { marginTop: 14, fontSize: 15, color: C.textSub },
-  loadingHint:     { marginTop: 6, fontSize: 12, color: C.textMuted },
-  errorIcon:       { fontSize: 36, marginBottom: 12 },
-  errorText:       { fontSize: 14, color: C.error, textAlign: 'center', lineHeight: 20 },
-  emptyText:       { textAlign: 'center', color: C.textMuted, fontSize: 14, marginTop: 40, lineHeight: 22 },
+    center:          { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SP.lg, backgroundColor: C.bg },
+    loadingText:     { marginTop: 14, fontSize: 15, color: C.textSub },
+    loadingHint:     { marginTop: 6, fontSize: 12, color: C.textMuted },
+    errorIcon:       { fontSize: 36, marginBottom: 12 },
+    errorText:       { fontSize: 14, color: C.error, textAlign: 'center', lineHeight: 20 },
+    emptyText:       { textAlign: 'center', color: C.textMuted, fontSize: 14, marginTop: 40, lineHeight: 22 },
 
-  machineBtn:      { margin: SP.md, marginBottom: SP.sm, backgroundColor: C.brand, borderRadius: R.md, padding: 12, alignItems: 'center', ...S.sm },
-  machineBtnText:  { color: C.white, fontWeight: '700', fontSize: 15 },
-  machineTag:      { margin: SP.md, marginBottom: SP.sm, alignItems: 'center' },
-  machineTagText:  { fontSize: 16, fontWeight: '600', color: C.brand },
+    machineBtn:      { margin: SP.md, marginBottom: SP.sm, backgroundColor: C.brand, borderRadius: R.md, padding: 12, alignItems: 'center', ...S.sm },
+    machineBtnText:  { color: C.white, fontWeight: '700', fontSize: 15 },
+    machineTag:      { margin: SP.md, marginBottom: SP.sm, alignItems: 'center' },
+    machineTagText:  { fontSize: 16, fontWeight: '600', color: C.brand },
 
-  dateRow:         { flexDirection: 'row', alignItems: 'center', marginHorizontal: SP.md, marginBottom: SP.sm, gap: 8 },
-  dateBtn:         { flex: 1, backgroundColor: C.surface, borderRadius: R.sm, borderWidth: 1, borderColor: C.border, padding: 10, ...S.xs },
-  dateBtnLabel:    { fontSize: 10, color: C.brand, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  dateBtnDate:     { fontSize: 13, color: C.text, fontWeight: '500', marginTop: 2 },
-  dateSep:         { fontSize: 16, color: C.textHint },
+    dateRow:         { flexDirection: 'row', alignItems: 'center', marginHorizontal: SP.md, marginBottom: SP.sm, gap: 8 },
+    dateBtn:         { flex: 1, backgroundColor: C.surface, borderRadius: R.sm, borderWidth: 1, borderColor: C.border, padding: 10, ...S.xs },
+    dateBtnLabel:    { fontSize: 10, color: C.brand, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+    dateBtnDate:     { fontSize: 13, color: C.text, fontWeight: '500', marginTop: 2 },
+    dateSep:         { fontSize: 16, color: C.textHint },
 
-  summaryRow:      { flexDirection: 'row', marginHorizontal: SP.md, marginBottom: SP.sm, gap: 6 },
-  summaryTile:     { flex: 1, backgroundColor: C.surface, borderRadius: R.sm, padding: 10, alignItems: 'center', ...S.xs },
-  summaryValue:    { fontSize: 13, fontWeight: '700', color: C.text, textAlign: 'center' },
-  summaryLabel:    { fontSize: 10, color: C.textMuted, marginTop: 2, textAlign: 'center' },
+    summaryRow:      { flexDirection: 'row', marginHorizontal: SP.md, marginBottom: SP.sm, gap: 6 },
+    summaryTile:     { flex: 1, backgroundColor: C.surface, borderRadius: R.sm, padding: 10, alignItems: 'center', ...S.xs },
+    summaryValue:    { fontSize: 13, fontWeight: '700', color: C.text, textAlign: 'center' },
+    summaryLabel:    { fontSize: 10, color: C.textMuted, marginTop: 2, textAlign: 'center' },
 
-  section:         { marginBottom: SP.sm },
-  sectionLabel:    { fontSize: 11, fontWeight: '700', color: C.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginHorizontal: SP.md, marginBottom: 6 },
-  sectionHint:     { fontWeight: '400', textTransform: 'none', letterSpacing: 0 },
-  chips:           { paddingHorizontal: SP.md, gap: 6 },
-  chip:            { paddingHorizontal: 10, paddingVertical: 5, borderRadius: R.pill, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.surface },
-  chipActive:      { borderColor: C.brand, backgroundColor: C.brandLight },
-  chipText:        { fontSize: 11, color: C.textMuted },
-  chipTextActive:  { color: C.brand, fontWeight: '600' },
+    section:         { marginBottom: SP.sm },
+    sectionLabel:    { fontSize: 11, fontWeight: '700', color: C.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginHorizontal: SP.md, marginBottom: 6 },
+    sectionHint:     { fontWeight: '400', textTransform: 'none', letterSpacing: 0 },
+    chips:           { paddingHorizontal: SP.md, gap: 6 },
+    chip:            { paddingHorizontal: 10, paddingVertical: 5, borderRadius: R.pill, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.surface },
+    chipActive:      { borderColor: C.brand, backgroundColor: C.brandLight },
+    chipText:        { fontSize: 11, color: C.textMuted },
+    chipTextActive:  { color: C.brand, fontWeight: '600' },
 
-  chartPanel:      { marginHorizontal: SP.md, marginBottom: SP.md, backgroundColor: C.surface, borderRadius: R.md, padding: SP.sm + 4, ...S.sm },
-  chartTitle:      { fontSize: 12, fontWeight: '600', color: C.textSub, marginBottom: 8 },
-  chartScroll:     { paddingBottom: 2 },
+    chartPanel:      { marginHorizontal: SP.md, marginBottom: SP.md, backgroundColor: C.surface, borderRadius: R.md, padding: SP.sm + 4, ...S.sm },
+    chartTitle:      { fontSize: 12, fontWeight: '600', color: C.textSub, marginBottom: 8 },
+    chartScroll:     { paddingBottom: 2 },
 
-  barCol:          { alignItems: 'center', paddingHorizontal: 2 },
-  bar:             { backgroundColor: 'rgba(0,169,157,0.50)', borderTopLeftRadius: R.xs, borderTopRightRadius: R.xs, alignItems: 'center', justifyContent: 'flex-start', paddingTop: 4 },
-  barValueInside:  { fontSize: 10, color: C.white, fontWeight: '600', textAlign: 'center', lineHeight: 13 },
-  barValueBelow:   { fontSize: 10, color: C.textSub, marginTop: 3, textAlign: 'center' },
-  barWorkId:       { fontSize: 9, color: C.textMuted, fontWeight: '600', marginTop: 1, textAlign: 'center' },
+    barCol:          { alignItems: 'center', paddingHorizontal: 2 },
+    bar:             { backgroundColor: 'rgba(0,169,157,0.50)', borderTopLeftRadius: R.xs, borderTopRightRadius: R.xs, alignItems: 'center', justifyContent: 'flex-start', paddingTop: 4 },
+    barValueInside:  { fontSize: 10, color: C.white, fontWeight: '600', textAlign: 'center', lineHeight: 13 },
+    barValueBelow:   { fontSize: 10, color: C.textSub, marginTop: 3, textAlign: 'center' },
+    barWorkId:       { fontSize: 9, color: C.textMuted, fontWeight: '600', marginTop: 1, textAlign: 'center' },
 
-  overlay:         { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet:           { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: C.surface, borderTopLeftRadius: R.lg, borderTopRightRadius: R.lg, paddingBottom: 32 },
-  sheetHeader:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: SP.md, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
-  sheetTitle:      { fontSize: 16, fontWeight: '700', color: C.text },
-  sheetClose:      { fontSize: 18, color: C.textHint },
-  sheetItem:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: SP.md, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
-  sheetItemActive: { backgroundColor: C.brandPale },
-  sheetItemText:   { fontSize: 15, color: C.text },
-  sheetItemTextActive: { color: C.brand, fontWeight: '600' },
-  sheetCheck:      { fontSize: 16, color: C.brand, fontWeight: '700' },
-  sheetEmpty:      { padding: 28, textAlign: 'center', color: C.textMuted, fontSize: 13 },
-});
+    overlay:         { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
+    sheet:           { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: C.surface, borderTopLeftRadius: R.lg, borderTopRightRadius: R.lg, paddingBottom: 32 },
+    sheetHeader:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: SP.md, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
+    sheetTitle:      { fontSize: 16, fontWeight: '700', color: C.text },
+    sheetClose:      { fontSize: 18, color: C.textHint },
+    sheetItem:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: SP.md, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
+    sheetItemActive: { backgroundColor: C.brandPale },
+    sheetItemText:   { fontSize: 15, color: C.text },
+    sheetItemTextActive: { color: C.brand, fontWeight: '600' },
+    sheetCheck:      { fontSize: 16, color: C.brand, fontWeight: '700' },
+    sheetEmpty:      { padding: 28, textAlign: 'center', color: C.textMuted, fontSize: 13 },
+  });
+}

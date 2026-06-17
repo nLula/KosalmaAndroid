@@ -8,7 +8,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNotes, NoteRecord, getNoteRecords, getProjects, localISOString } from '../../services/notesContext';
 import { stripMd } from '../../utils/stripMd';
 import { NotesStackParams } from '../NotesScreen';
-import { C, S, R, SP } from '../../theme';
+import { useColors } from '../../services/themeContext';
+import { S, R, SP, ColorsType } from '../../theme';
 
 type Nav   = NativeStackNavigationProp<NotesStackParams, 'NoteEdit'>;
 type Route = RouteProp<NotesStackParams, 'NoteEdit'>;
@@ -18,6 +19,9 @@ export default function NoteEditScreen() {
   const nav   = useNavigation<Nav>();
   const route = useRoute<Route>();
   const { notes, updateNote } = useNotes();
+
+  const C = useColors();
+  const styles = React.useMemo(() => makeStyles(C), [C]);
 
   const existingId = route.params?.id;
   const isNew      = !existingId;
@@ -56,7 +60,7 @@ export default function NoteEditScreen() {
         </TouchableOpacity>
       ),
     });
-  }, [saving, header, tag, project, description, isNew]);
+  }, [saving, header, tag, project, description, isNew, styles]);
 
   async function handleSave() {
     if (!header.trim()) {
@@ -185,6 +189,8 @@ export default function NoteEditScreen() {
         }}
         onClose={() => setShowTagPicker(false)}
         allowNone={false}
+        styles={styles}
+        C={C}
       />
 
       <PickerModal
@@ -202,6 +208,8 @@ export default function NoteEditScreen() {
         onClose={() => setShowProjectPicker(false)}
         allowNone
         onSelectNone={() => { setProject(''); setShowProjectPicker(false); }}
+        styles={styles}
+        C={C}
       />
     </KeyboardAvoidingView>
   );
@@ -221,11 +229,13 @@ type PickerModalProps = {
   onClose: () => void;
   allowNone?: boolean;
   onSelectNone?: () => void;
+  styles: ReturnType<typeof makeStyles>;
+  C: ColorsType;
 };
 
 function PickerModal({
   visible, title, items, selected, newValue, onNewValueChange,
-  onSelect, onAddNew, onClose, allowNone, onSelectNone,
+  onSelect, onAddNew, onClose, allowNone, onSelectNone, styles, C,
 }: PickerModalProps) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -297,41 +307,43 @@ function generateId(notes: Record<string, any>): string {
 
 // ─── styles ─────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  container:        { flex: 1, backgroundColor: C.bg },
-  content:          { padding: SP.md, paddingBottom: 48 },
+function makeStyles(C: ColorsType) {
+  return StyleSheet.create({
+    container:        { flex: 1, backgroundColor: C.bg },
+    content:          { padding: SP.md, paddingBottom: 48 },
 
-  label:            { fontSize: 11, color: C.textMuted, fontWeight: '700', marginTop: 18, marginBottom: 5, textTransform: 'uppercase', letterSpacing: 0.5 },
-  required:         { color: C.error },
-  optional:         { color: C.textHint, fontWeight: '400', textTransform: 'none', letterSpacing: 0 },
+    label:            { fontSize: 11, color: C.textMuted, fontWeight: '700', marginTop: 18, marginBottom: 5, textTransform: 'uppercase', letterSpacing: 0.5 },
+    required:         { color: C.error },
+    optional:         { color: C.textHint, fontWeight: '400', textTransform: 'none', letterSpacing: 0 },
 
-  input:            { borderWidth: 1, borderColor: C.border, borderRadius: R.sm, padding: 10, fontSize: 15, color: C.text, backgroundColor: C.surface },
-  picker:           { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.border, borderRadius: R.sm, paddingHorizontal: 10, paddingVertical: 11, backgroundColor: C.surface },
-  pickerWarn:       { borderColor: '#F5A7A7', backgroundColor: '#FFFAFA' },
-  pickerValue:      { flex: 1, fontSize: 15, color: C.text },
-  pickerPlaceholder:{ flex: 1, fontSize: 15, color: C.textHint },
-  pickerArrow:      { fontSize: 18, color: C.textHint },
+    input:            { borderWidth: 1, borderColor: C.border, borderRadius: R.sm, padding: 10, fontSize: 15, color: C.text, backgroundColor: C.surface },
+    picker:           { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.border, borderRadius: R.sm, paddingHorizontal: 10, paddingVertical: 11, backgroundColor: C.surface },
+    pickerWarn:       { borderColor: '#F5A7A7', backgroundColor: '#FFFAFA' },
+    pickerValue:      { flex: 1, fontSize: 15, color: C.text },
+    pickerPlaceholder:{ flex: 1, fontSize: 15, color: C.textHint },
+    pickerArrow:      { fontSize: 18, color: C.textHint },
 
-  textArea:         { borderWidth: 1, borderColor: C.border, borderRadius: R.sm, padding: 10, fontSize: 15, color: C.text, minHeight: 200, backgroundColor: C.surface },
+    textArea:         { borderWidth: 1, borderColor: C.border, borderRadius: R.sm, padding: 10, fontSize: 15, color: C.text, minHeight: 200, backgroundColor: C.surface },
 
-  deleteBtn:        { marginTop: 32, padding: 14, borderRadius: R.sm, backgroundColor: '#FFF3F3', alignItems: 'center', borderWidth: 1, borderColor: '#F5A7A7' },
-  deleteBtnText:    { color: C.error, fontWeight: '600', fontSize: 15 },
+    deleteBtn:        { marginTop: 32, padding: 14, borderRadius: R.sm, backgroundColor: '#FFF3F3', alignItems: 'center', borderWidth: 1, borderColor: '#F5A7A7' },
+    deleteBtnText:    { color: C.error, fontWeight: '600', fontSize: 15 },
 
-  headerBtn:        { marginRight: 4, paddingHorizontal: 12, paddingVertical: 5, backgroundColor: C.brandLight, borderRadius: R.sm },
-  headerBtnText:    { color: C.brandDark, fontWeight: '700', fontSize: 15 },
+    headerBtn:        { marginRight: 0, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: C.surface, borderRadius: R.sm, borderWidth: 1.5, borderColor: C.brand },
+    headerBtnText:    { color: C.text, fontWeight: '600', fontSize: 13 },
 
-  overlay:          { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet:            { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: C.surface, borderTopLeftRadius: R.lg, borderTopRightRadius: R.lg, paddingBottom: 32 },
-  sheetHeader:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: SP.md, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
-  sheetTitle:       { fontSize: 16, fontWeight: '700', color: C.text },
-  sheetClose:       { fontSize: 18, color: C.textHint },
-  sheetItem:        { flexDirection: 'row', alignItems: 'center', padding: SP.md, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
-  sheetItemText:    { flex: 1, fontSize: 15, color: C.text },
-  sheetItemSelected:{ color: C.brand, fontWeight: '600' },
-  checkmark:        { fontSize: 16, color: C.brand },
-  sheetEmpty:       { padding: 24, textAlign: 'center', color: C.textMuted, fontSize: 13 },
-  newRow:           { flexDirection: 'row', alignItems: 'center', padding: SP.sm, gap: 8, borderTopWidth: 0.5, borderTopColor: C.borderLight, marginTop: 4 },
-  newInput:         { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: R.sm, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14, color: C.text, backgroundColor: C.surfaceAlt },
-  addBtn:           { backgroundColor: C.brand, borderRadius: R.sm, paddingHorizontal: 16, paddingVertical: 9 },
-  addBtnText:       { color: C.white, fontWeight: '700', fontSize: 14 },
-});
+    overlay:          { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
+    sheet:            { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: C.surface, borderTopLeftRadius: R.lg, borderTopRightRadius: R.lg, paddingBottom: 32 },
+    sheetHeader:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: SP.md, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
+    sheetTitle:       { fontSize: 16, fontWeight: '700', color: C.text },
+    sheetClose:       { fontSize: 18, color: C.textHint },
+    sheetItem:        { flexDirection: 'row', alignItems: 'center', padding: SP.md, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
+    sheetItemText:    { flex: 1, fontSize: 15, color: C.text },
+    sheetItemSelected:{ color: C.brand, fontWeight: '600' },
+    checkmark:        { fontSize: 16, color: C.brand },
+    sheetEmpty:       { padding: 24, textAlign: 'center', color: C.textMuted, fontSize: 13 },
+    newRow:           { flexDirection: 'row', alignItems: 'center', padding: SP.sm, gap: 8, borderTopWidth: 0.5, borderTopColor: C.borderLight, marginTop: 4 },
+    newInput:         { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: R.sm, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14, color: C.text, backgroundColor: C.surfaceAlt },
+    addBtn:           { backgroundColor: C.brand, borderRadius: R.sm, paddingHorizontal: 16, paddingVertical: 9 },
+    addBtnText:       { color: C.white, fontWeight: '700', fontSize: 14 },
+  });
+}

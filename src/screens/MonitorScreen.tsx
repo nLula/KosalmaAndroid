@@ -1,13 +1,15 @@
-import React, { useRef, useMemo, useEffect, useState } from 'react';
+import React, { useRef, useMemo, useEffect, useState, useLayoutEffect } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   Modal, ScrollView,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useNotes, getNoteRecords, NoteRecord } from '../services/notesContext';
 import { stripMd } from '../utils/stripMd';
 import SyncBar from '../components/SyncBar';
 import { parseWorkSlots, WorkSlot } from './calendar/CalendarMainScreen';
-import { C, S, R, SP } from '../theme';
+import { useColors } from '../services/themeContext';
+import { S, R, SP, ColorsType } from '../theme';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -33,18 +35,22 @@ function buildDates(today: Date): DayEntry[] {
   });
 }
 
-function noteColor(color: string): string {
-  if (!color || color === 'none' || color === 'FFFFFF' || color === 'transparent') return C.brand;
+function noteColor(color: string, brand: string): string {
+  if (!color || color === 'none' || color === 'FFFFFF' || color === 'transparent') return brand;
   return `#${color}`;
 }
 
 // ─── component ───────────────────────────────────────────────────────────────
 
 export default function MonitorScreen() {
+  const navigation = useNavigation();
   const { notes, loading, error, lastSync } = useNotes();
   const listRef = useRef<FlatList<DayEntry>>(null);
   const [showJump,     setShowJump]     = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<SlotEntry | null>(null);
+
+  const C = useColors();
+  const styles = React.useMemo(() => makeStyles(C), [C]);
 
   const today = useMemo(() => new Date(), []);
   const dates = useMemo(() => buildDates(today), [today]);
@@ -73,6 +79,16 @@ export default function MonitorScreen() {
     setShowJump(false);
   }
 
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: showJump ? () => (
+        <TouchableOpacity style={styles.todayBtn} onPress={jumpToToday} activeOpacity={0.7}>
+          <Text style={styles.todayBtnText}>{'↩︎'} Today</Text>
+        </TouchableOpacity>
+      ) : undefined,
+    });
+  }, [navigation, showJump, styles]);
+
   function onViewableChanged({ viewableItems }: any) {
     const visible = viewableItems.map((v: any) => v.index as number);
     setShowJump(!visible.includes(TODAY_IDX));
@@ -85,6 +101,31 @@ export default function MonitorScreen() {
     const dayName   = DAY_ABBR[d.getDay()];
     const monthName = MONTH_ABBR[d.getMonth()];
     const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+
+    const slotNodes = daySlots.map(entry => {
+      const slotBg   = noteColor(entry.slot.color, C.brand);
+      const isLight  = entry.slot.color === 'FFF200';
+      const tagLabel = (entry.record.tag || '—').slice(0, 4).toUpperCase();
+      const sub      = [entry.record.tag, entry.record.project].filter(Boolean).join(' · ');
+      return (
+        <TouchableOpacity
+          key={entry.slot.slotKey}
+          style={styles.noteItem}
+          onPress={() => setSelectedSlot(entry)}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.noteBadge, { backgroundColor: slotBg, borderColor: slotBg }]}>
+            <Text style={[styles.noteBadgeText, { color: isLight ? C.text : C.white }]}>{tagLabel}</Text>
+          </View>
+          <View style={styles.noteBody}>
+            <Text style={styles.noteTitle} numberOfLines={1}>
+              {entry.record.header?.replace(/^#+\s*/, '') || '(no title)'}
+            </Text>
+            {sub ? <Text style={styles.noteSub} numberOfLines={1}>{sub}</Text> : null}
+          </View>
+        </TouchableOpacity>
+      );
+    });
 
     return (
       <View style={[styles.dayRow, isToday && styles.dayRowToday]}>
@@ -104,28 +145,7 @@ export default function MonitorScreen() {
         <View style={styles.notesCol}>
           {daySlots.length === 0 ? (
             <Text style={styles.emptyDay}>—</Text>
-          ) : (
-            daySlots.map(entry => (
-              <TouchableOpacity
-                key={entry.slot.slotKey}
-                style={[styles.noteItem, { borderLeftColor: noteColor(entry.slot.color) }]}
-                onPress={() => setSelectedSlot(entry)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.noteTitle} numberOfLines={2}>
-                  {entry.record.header?.replace(/^#+\s*/, '') || '(no title)'}
-                </Text>
-                <View style={styles.noteMeta}>
-                  <View style={styles.tagPill}>
-                    <Text style={styles.tagText}>{entry.record.tag}</Text>
-                  </View>
-                  {entry.record.project ? (
-                    <Text style={styles.noteProject} numberOfLines={1}>{entry.record.project}</Text>
-                  ) : null}
-                </View>
-              </TouchableOpacity>
-            ))
-          )}
+          ) : slotNodes}
         </View>
       </View>
     );
@@ -154,12 +174,6 @@ export default function MonitorScreen() {
         maxToRenderPerBatch={20}
       />
 
-      {showJump && (
-        <TouchableOpacity style={styles.jumpBtn} onPress={jumpToToday} activeOpacity={0.85}>
-          <Text style={styles.jumpBtnText}>↩ Today</Text>
-        </TouchableOpacity>
-      )}
-
       <Modal
         visible={!!selectedSlot}
         transparent
@@ -169,7 +183,7 @@ export default function MonitorScreen() {
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setSelectedSlot(null)} />
         {selectedSlot && (
           <View style={styles.modalSheet}>
-            <View style={[styles.modalAccent, { backgroundColor: noteColor(selectedSlot.slot.color) }]} />
+            <View style={[styles.modalAccent, { backgroundColor: noteColor(selectedSlot.slot.color, C.brand) }]} />
             <View style={styles.modalHeader}>
               <View style={styles.modalTitleWrap}>
                 <Text style={styles.modalTitle}>
@@ -216,53 +230,58 @@ export default function MonitorScreen() {
 
 // ─── styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  container:       { flex: 1, backgroundColor: C.bg },
+function makeStyles(C: ColorsType) {
+  return StyleSheet.create({
+    container:       { flex: 1, backgroundColor: C.bg },
 
-  dayRow:          { flexDirection: 'row', paddingVertical: 10, paddingHorizontal: 10, minHeight: EST_H },
-  dayRowToday:     { backgroundColor: C.brandPale },
+    dayRow:          { flexDirection: 'row', paddingVertical: 10, paddingHorizontal: 10, minHeight: EST_H },
+    dayRowToday:     { backgroundColor: C.brandPale },
 
-  dateBadge:       { width: 58, alignItems: 'center', justifyContent: 'flex-start', paddingTop: 2, marginRight: 10 },
-  dateBadgeToday:  {},
+    dateBadge:       { width: 58, alignItems: 'center', justifyContent: 'flex-start', paddingTop: 2, marginRight: 10 },
+    dateBadgeToday:  {},
 
-  dayName:         { fontSize: 11, color: C.textHint, fontWeight: '700', textTransform: 'uppercase' },
-  dayNum:          { fontSize: 26, fontWeight: '700', color: C.textHint, lineHeight: 30, marginTop: 2 },
-  monthLabel:      { fontSize: 10, color: C.textHint, fontWeight: '500', marginTop: 1 },
-  dayAccent:       { color: C.brand },
-  weekendText:     { color: '#C0A0A0' },
+    dayName:         { fontSize: 11, color: C.textHint, fontWeight: '700', textTransform: 'uppercase' },
+    dayNum:          { fontSize: 26, fontWeight: '700', color: C.textHint, lineHeight: 30, marginTop: 2 },
+    monthLabel:      { fontSize: 10, color: C.textHint, fontWeight: '500', marginTop: 1 },
+    dayAccent:       { color: C.brand },
+    weekendText:     { color: '#C0A0A0' },
 
-  todayPill:       { marginTop: 5, backgroundColor: C.brand, borderRadius: R.xs, paddingHorizontal: 5, paddingVertical: 2 },
-  todayPillText:   { fontSize: 8, color: C.white, fontWeight: '800', letterSpacing: 0.5 },
+    todayPill:       { marginTop: 5, backgroundColor: C.brand, borderRadius: R.xs, paddingHorizontal: 5, paddingVertical: 2 },
+    todayPillText:   { fontSize: 8, color: C.white, fontWeight: '800', letterSpacing: 0.5 },
 
-  notesCol:        { flex: 1, justifyContent: 'center', paddingVertical: 2 },
-  emptyDay:        { color: C.border, fontSize: 18, alignSelf: 'center', marginTop: 12 },
+    notesCol:        { flex: 1, justifyContent: 'center', paddingVertical: 2 },
+    emptyDay:        { color: C.border, fontSize: 18, alignSelf: 'center', marginTop: 12 },
 
-  noteItem:        { borderLeftWidth: 3, borderLeftColor: C.brand, paddingLeft: 10, paddingVertical: 6, marginBottom: 6, backgroundColor: C.surface, borderRadius: R.xs, ...S.xs },
-  noteTitle:       { fontSize: 14, color: C.text, fontWeight: '500', lineHeight: 19 },
-  noteMeta:        { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 6 },
-  tagPill:         { backgroundColor: C.brandLight, borderRadius: R.pill, paddingHorizontal: 7, paddingVertical: 2 },
-  tagText:         { fontSize: 10, color: C.brand, fontWeight: '700' },
-  noteProject:     { fontSize: 10, color: C.textMuted, flexShrink: 1 },
+    noteItem:        { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, borderRadius: R.sm, marginBottom: 5, paddingHorizontal: 8, paddingVertical: 6, ...S.xs },
+    noteBadge:       { width: 30, height: 30, borderRadius: R.xs, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+    noteBadgeText:   { fontSize: 8, fontWeight: '700', color: C.textSub, letterSpacing: 0.4 },
+    noteBody:        { flex: 1 },
+    noteTitle:       { fontSize: 13, color: C.text, fontWeight: '500' },
+    noteSub:         { fontSize: 10, color: C.textMuted, marginTop: 1 },
 
-  separator:       { height: 0.5, backgroundColor: C.borderLight, marginLeft: 68 },
+    separator:       { height: 0.5, backgroundColor: C.borderLight, marginLeft: 68 },
 
-  jumpBtn:         { position: 'absolute', bottom: 20, alignSelf: 'center', backgroundColor: C.brand, borderRadius: R.pill, paddingHorizontal: 18, paddingVertical: 9, ...S.md },
-  jumpBtnText:     { color: C.white, fontWeight: '700', fontSize: 14 },
+    todayBtn:        { marginRight: 8, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: C.surface, borderRadius: R.sm, borderWidth: 1.5, borderColor: C.brand },
+    todayBtnText:    { color: C.text, fontWeight: '600', fontSize: 13 },
 
-  modalOverlay:    { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
-  modalSheet:      { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: C.surface, borderTopLeftRadius: R.lg, borderTopRightRadius: R.lg, maxHeight: '80%', overflow: 'hidden' },
-  modalAccent:     { height: 4 },
-  modalHeader:     { flexDirection: 'row', alignItems: 'flex-start', padding: SP.md, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
-  modalTitleWrap:  { flex: 1 },
-  modalTitle:      { fontSize: 17, fontWeight: '700', color: C.text, lineHeight: 23 },
-  modalPills:      { flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 6, flexWrap: 'wrap' },
-  modalProject:    { fontSize: 12, color: C.textSub },
-  modalCloseBtn:   { marginLeft: 12, padding: 2 },
-  modalCloseText:  { fontSize: 20, color: C.textHint },
-  modalBody:       { maxHeight: 340 },
-  modalBodyContent:{ padding: SP.md },
-  modalDescription:{ fontSize: 15, color: C.textSub, lineHeight: 23 },
-  modalEmpty:      { fontSize: 14, color: C.textMuted, fontStyle: 'italic' },
-  modalFooter:     { padding: SP.sm, borderTopWidth: 0.5, borderTopColor: C.borderLight },
-  modalMeta:       { fontSize: 11, color: C.textHint, textAlign: 'right' },
-});
+    modalOverlay:    { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
+    modalSheet:      { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: C.surface, borderTopLeftRadius: R.lg, borderTopRightRadius: R.lg, maxHeight: '80%', overflow: 'hidden' },
+    modalAccent:     { height: 4 },
+    modalHeader:     { flexDirection: 'row', alignItems: 'flex-start', padding: SP.md, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
+    modalTitleWrap:  { flex: 1 },
+    modalTitle:      { fontSize: 17, fontWeight: '700', color: C.text, lineHeight: 23 },
+    modalPills:      { flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 6, flexWrap: 'wrap' },
+    modalProject:    { fontSize: 12, color: C.textSub },
+    modalCloseBtn:   { marginLeft: 12, padding: 2 },
+    modalCloseText:  { fontSize: 20, color: C.textHint },
+    modalBody:       { maxHeight: 340 },
+    modalBodyContent:{ padding: SP.md },
+    modalDescription:{ fontSize: 15, color: C.textSub, lineHeight: 23 },
+    modalEmpty:      { fontSize: 14, color: C.textMuted, fontStyle: 'italic' },
+    modalFooter:     { padding: SP.sm, borderTopWidth: 0.5, borderTopColor: C.borderLight },
+    modalMeta:       { fontSize: 11, color: C.textHint, textAlign: 'right' },
+
+    tagPill:         { backgroundColor: C.surfaceAlt, borderRadius: R.xs, paddingHorizontal: 6, paddingVertical: 2 },
+    tagText:         { fontSize: 11, color: C.textSub, fontWeight: '600' },
+  });
+}
