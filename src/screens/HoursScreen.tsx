@@ -5,6 +5,8 @@ import { loadConfig } from '../services/storage';
 import { DEFAULT_CONFIG, Employee } from '../config/defaults';
 import SyncBar from '../components/SyncBar';
 import { useColors } from '../services/themeContext';
+import { calcDayHours, fmtHours, DayData, DayHours } from '../services/hours';
+import { holidayName } from '../services/holidays';
 import { S, R, SP, ColorsType } from '../theme';
 
 // ─── layout constants ─────────────────────────────────────────────────────────
@@ -17,17 +19,7 @@ const ROW_H      = 70;
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
-type DayData  = { time?: string; battery?: string };
 type HoursMap = Record<string, Record<string, DayData>>;
-
-type DayHours = {
-  regular:  number;
-  overtime: number;
-  total:    number;
-  start:    string | null;
-  end:      string | null;
-  battery:  string | null;
-};
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -51,52 +43,10 @@ function toDateStr(d: Date): string {
   return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function parseTimeMins(t: string): number {
-  const [h, m] = t.split(':').map(Number);
-  return isNaN(h) || isNaN(m) ? NaN : h * 60 + m;
-}
-
-function calcHours(dayData: DayData | undefined, date: Date): DayHours {
-  const empty: DayHours = { regular: 0, overtime: 0, total: 0, start: null, end: null, battery: null };
-  if (!dayData?.time) return empty;
-
-  const battery = dayData.battery ?? null;
-  const times   = dayData.time.split(';').map(t => t.trim()).filter(Boolean);
-  if (!times.length) return { ...empty, battery };
-
-  const start = times[0];
-  const end   = times.length > 1 ? times[times.length - 1] : null;
-  if (!end) return { ...empty, start, battery };
-
-  const startM = parseTimeMins(start);
-  const endM   = parseTimeMins(end);
-  if (isNaN(startM) || isNaN(endM)) return { ...empty, start, end, battery };
-
-  let totalMins = endM - startM;
-  if (totalMins < 0) totalMins += 1440;
-
-  const isWeekend   = date.getDay() === 0 || date.getDay() === 6;
-  const lunch       = 30;
-  const regularZone = 8 * 60 + lunch;
-
-  let regular = 0, overtime = 0;
-  if (isWeekend) {
-    overtime = (totalMins > 240 ? totalMins - lunch : totalMins) / 60;
-  } else if (totalMins <= regularZone) {
-    regular  = Math.min(8, (totalMins > 240 ? totalMins - lunch : totalMins) / 60);
-  } else {
-    regular  = 8;
-    overtime = (totalMins - regularZone) / 60;
-  }
-
-  return { regular, overtime, total: regular + overtime, start, end, battery };
-}
-
-function fmtH(h: number): string {
-  const hh = Math.floor(h);
-  const mm = Math.round((h - hh) * 60);
-  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
-}
+// The day calculation lives in services/hours.ts so the phone, the PC screen
+// and the payslip all use one rule.
+const calcHours = calcDayHours;
+const fmtH = fmtHours;
 
 // ─── sub-components ───────────────────────────────────────────────────────────
 
@@ -215,6 +165,7 @@ export default function HoursScreen() {
           {weekDays.map(({ date, dateStr }) => {
             const isToday   = dateStr === todayStr;
             const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+            const holiday   = holidayName(date);
 
             return (
               <View
@@ -223,15 +174,27 @@ export default function HoursScreen() {
                   styles.dataRow,
                   isToday   && styles.dataRowToday,
                   isWeekend && !isToday && styles.dataRowWeekend,
+                  holiday   && !isToday && styles.dataRowHoliday,
                 ]}
               >
                 <View style={[styles.dateCol, styles.dateCell]}>
-                  <Text style={[styles.dayAbbr, isToday && styles.todayAccent, isWeekend && !isToday && styles.weekendAccent]}>
+                  <Text style={[
+                    styles.dayAbbr,
+                    isToday && styles.todayAccent,
+                    isWeekend && !isToday && styles.weekendAccent,
+                    holiday && !isToday && styles.holidayAccent,
+                  ]}>
                     {DAY_ABBR[date.getDay()]}
                   </Text>
-                  <Text style={[styles.dayNum, isToday && styles.todayAccent, isWeekend && !isToday && styles.weekendAccent]}>
+                  <Text style={[
+                    styles.dayNum,
+                    isToday && styles.todayAccent,
+                    isWeekend && !isToday && styles.weekendAccent,
+                    holiday && !isToday && styles.holidayAccent,
+                  ]}>
                     {date.getDate()}
                   </Text>
+                  {holiday && <Text style={styles.holidayTag} numberOfLines={1}>HOL</Text>}
                 </View>
 
                 {employees.map(emp => {
@@ -304,6 +267,7 @@ function makeStyles(C: ColorsType) {
     dataRow:        { flexDirection: 'row', minHeight: ROW_H, borderBottomWidth: 0.5, borderBottomColor: C.borderLight, backgroundColor: C.surface },
     dataRowToday:   { backgroundColor: C.brandPale },
     dataRowWeekend: { backgroundColor: C.surfaceAlt },
+    dataRowHoliday: { backgroundColor: C.surfaceAlt },
 
     dateCol:        { width: COL_DATE },
     dateCell:       { alignItems: 'center', justifyContent: 'center', paddingVertical: 6 },
@@ -311,6 +275,8 @@ function makeStyles(C: ColorsType) {
     dayNum:         { fontSize: 22, fontWeight: '700', color: C.textHint, lineHeight: 26 },
     todayAccent:    { color: C.brand },
     weekendAccent:  { color: '#C0A0A0' },
+    holidayAccent:  { color: '#dc2626' },
+    holidayTag:     { fontSize: 7, fontWeight: '700', color: '#dc2626', letterSpacing: 0.4 },
 
     empGroup:       { flexDirection: 'row', alignItems: 'center', borderLeftWidth: 0.5, borderLeftColor: C.borderLight },
     daySubCol:      { alignItems: 'center', justifyContent: 'center', paddingVertical: 4, gap: 1 },

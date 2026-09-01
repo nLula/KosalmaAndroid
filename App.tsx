@@ -12,6 +12,7 @@ import MonitorScreen    from './src/screens/MonitorScreen';
 import HoursScreen      from './src/screens/HoursScreen';
 import FilesScreen      from './src/screens/FilesScreen';
 import StatisticsScreen from './src/screens/StatisticsScreen';
+import SwitchesScreen   from './src/screens/SwitchesScreen';
 import SettingsScreen   from './src/screens/SettingsScreen';
 import { S, R, ColorsType } from './src/theme';
 
@@ -24,12 +25,14 @@ const PICTO: Record<string, ImageSourcePropType> = {
   Hours:      require('./pictograms/jours.png'),
   Files:      require('./pictograms/files.png'),
   Statistics: require('./pictograms/stats.png'),
+  Switches:   require('./pictograms/switches.png'),
   Settings:   require('./pictograms/setup.png'),
 };
 
 const SHORT: Record<string, string> = {
   Notes: 'Notes', Calendar: 'Rota', Monitor: 'View',
-  Hours: 'Hours', Files: 'Files', Statistics: 'Stats', Settings: 'Setup',
+  Hours: 'Hours', Files: 'Files', Statistics: 'Stats',
+  Switches: 'Valves', Settings: 'Setup',
 };
 
 const TAB_ROW_HEIGHT = 56;
@@ -56,7 +59,7 @@ function TopTabBar({ state, navigation, onHeightChange }: BottomTabBarProps & { 
             >
               <Image
                 source={PICTO[route.name]}
-                style={[bar.icon, { opacity: focused ? 1 : 0.4 }]}
+                style={[bar.icon, { tintColor: focused ? C.brand : C.textMuted }]}
                 resizeMode="stretch"
               />
               <Text style={[bar.label, focused && bar.labelActive]} numberOfLines={1}>
@@ -110,6 +113,7 @@ function AppNavigator() {
         <Tab.Screen name="Hours"      component={HoursScreen}     options={{ headerTitle: () => <TipTitle title="Hours" /> }} />
         <Tab.Screen name="Files"      component={FilesScreen}     options={{ headerTitle: () => <TipTitle title="Files" sub="Files larger than 47 MB will not be synced" /> }} />
         <Tab.Screen name="Statistics" component={StatisticsScreen} options={{ headerTitle: () => <TipTitle title="Statistics" /> }} />
+        <Tab.Screen name="Switches"   component={SwitchesScreen}  options={{ headerTitle: () => <TipTitle title="Switches" sub="Sent via Git to the workshop app" /> }} />
         <Tab.Screen name="Settings"   component={SettingsScreen}  options={{ title: 'Setup' }} />
       </Tab.Navigator>
     </NavigationContainer>

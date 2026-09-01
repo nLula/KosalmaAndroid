@@ -15,7 +15,6 @@ type Nav   = NativeStackNavigationProp<CalendarStackParams, 'DayView'>;
 type Route = RouteProp<CalendarStackParams, 'DayView'>;
 
 const COLORS: { value: string; label: string }[] = [
-  { value: 'none',   label: 'None'   },
   { value: 'EF3340', label: 'Red'    },
   { value: '00A99D', label: 'Green'  },
   { value: 'FFF200', label: 'Yellow' },
@@ -126,6 +125,10 @@ export default function DayViewScreen() {
 
   async function handleAssignConfirm() {
     if (!pendingAssignId) return;
+    if (!pendingColor || pendingColor === 'none') {
+      Alert.alert('Color required', 'Please pick a color before assigning this task to the day.');
+      return;
+    }
     const record  = notes[pendingAssignId] as NoteRecord;
     const slotKey = generateSlotKey(record.tag);
     setShowAssign(false);

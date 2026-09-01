@@ -49,25 +49,27 @@ export async function writeNotes(
   return json.content.sha;
 }
 
-// List files/ folder — returns flat file list (no subdirectory recursion for now)
-export async function fetchFilesList(config: AppConfig): Promise<Array<{ name: string; path: string; sha: string; download_url: string; size: number; type: string }>> {
+// List files/ folder (or a subfolder of it) — returns files and dirs
+export async function fetchFilesList(config: AppConfig, subpath = ''): Promise<Array<{ name: string; path: string; sha: string; download_url: string; size: number; type: string }>> {
   const { pat, owner, repo } = config.github;
-  const res = await fetch(`${BASE}/repos/${owner}/${repo}/contents/files`, {
+  const dir = subpath ? `files/${subpath}` : 'files';
+  const res = await fetch(`${BASE}/repos/${owner}/${repo}/contents/${dir}`, {
     headers: headers(pat),
   });
   if (!res.ok) throw new Error(`GitHub files fetch failed: ${res.status}`);
   return res.json();
 }
 
-// Upload a file to files/ — base64Content is the file content encoded in base64
+// Upload a file to files/ (or a subfolder) — base64Content is the file content encoded in base64
 export async function uploadFile(
   config: AppConfig,
   filename: string,
   base64Content: string,
   existingSha?: string,   // pass if overwriting an existing file
+  subpath = '',           // subfolder inside files/, e.g. 'reports/2026'
 ): Promise<void> {
   const { pat, owner, repo } = config.github;
-  const path = `files/${filename}`;
+  const path = subpath ? `files/${subpath}/${filename}` : `files/${filename}`;
   const body: Record<string, any> = {
     message: `upload ${filename} from android`,
     content: base64Content,
@@ -100,6 +102,67 @@ export async function deleteGithubFile(
     const err = await res.json().catch(() => ({}));
     throw new Error(`Delete failed: ${res.status} ${err.message ?? ''}`);
   }
+}
+
+// Get SHA of an existing file in files/ — returns undefined if the file doesn't exist yet
+export async function getFileSha(config: AppConfig, filename: string): Promise<string | undefined> {
+  const { pat, owner, repo } = config.github;
+  const res = await fetch(
+    `${BASE}/repos/${owner}/${repo}/contents/files/${encodeURIComponent(filename)}`,
+    { headers: headers(pat) },
+  );
+  if (!res.ok) return undefined;
+  const json = await res.json();
+  return json.sha as string;
+}
+
+// Upload a file to attachments/ (image attachments shared with PC app)
+export async function uploadAttachment(
+  config: AppConfig,
+  filename: string,
+  base64Content: string,
+  existingSha?: string,
+): Promise<void> {
+  const { pat, owner, repo } = config.github;
+  const path = `attachments/${filename}`;
+  const body: Record<string, any> = {
+    message: `upload ${filename} from android`,
+    content: base64Content,
+  };
+  if (existingSha) body.sha = existingSha;
+  const res = await fetch(`${BASE}/repos/${owner}/${repo}/contents/${path}`, {
+    method: 'PUT',
+    headers: headers(pat),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(`Upload failed: ${res.status} ${err.message ?? ''}`);
+  }
+}
+
+// Get SHA of an existing file in attachments/
+export async function getAttachmentSha(config: AppConfig, filename: string): Promise<string | undefined> {
+  const { pat, owner, repo } = config.github;
+  const res = await fetch(
+    `${BASE}/repos/${owner}/${repo}/contents/attachments/${encodeURIComponent(filename)}`,
+    { headers: headers(pat) },
+  );
+  if (!res.ok) return undefined;
+  const json = await res.json();
+  return json.sha as string;
+}
+
+// Fetch a file from files/ folder as base64 — for private repos where download_url requires auth
+export async function fetchFileAsBase64(config: AppConfig, filename: string): Promise<string> {
+  const { pat, owner, repo } = config.github;
+  const res = await fetch(
+    `${BASE}/repos/${owner}/${repo}/contents/files/${encodeURIComponent(filename)}`,
+    { headers: headers(pat) },
+  );
+  if (!res.ok) throw new Error(`File fetch failed: ${res.status}`);
+  const json = await res.json();
+  return (json.content as string).replace(/\n/g, '');
 }
 
 // Fetch statistics.json — large file, so we use raw.githubusercontent.com with auth

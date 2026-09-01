@@ -2,19 +2,19 @@
   "expo": {
     "name": "Kosalma",
     "slug": "kosalma",
-    "version": "1.0.0",
-    "newArchEnabled": false,
+    "version": "1.1.0",
     "orientation": "portrait",
-    "icon": "./icon.png",
-    "userInterfaceStyle": "light",
+    "icon": "./KosalmaIcons/playstore.png",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "package": "com.nlula.kosalma",
-      "icon": "./icon.png",
+      "versionCode": 2,
+      "icon": "./KosalmaIcons/playstore.png",
       "adaptiveIcon": {
-        "foregroundImage": "./icon.png",
+        "foregroundImage": "./KosalmaIcons/playstore.png",
         "backgroundColor": "#FFFFFF"
       },
       "predictiveBackGestureEnabled": false

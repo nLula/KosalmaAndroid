@@ -9,7 +9,7 @@ import { S, R, SP, ColorsType } from '../theme';
 export default function SettingsScreen() {
   const navigation = useNavigation();
   const C = useColors();
-  const { isDark, setMode } = useThemeCtx();
+  const { setMode, mode } = useThemeCtx();
   const styles = React.useMemo(() => makeStyles(C), [C]);
 
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
@@ -62,7 +62,6 @@ export default function SettingsScreen() {
     });
   }, [navigation, handleSave, saved, styles]);
 
-  const appearance = isDark ? 'dark' : 'light';
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -128,15 +127,15 @@ export default function SettingsScreen() {
       <Text style={styles.section}>Appearance</Text>
       <View style={styles.card}>
         <View style={[styles.fieldRow, styles.themeRow]}>
-          {(['light', 'dark'] as const).map(mode => {
-            const active = appearance === mode;
-            const icon   = mode === 'light' ? '☀︎' : '☾︎';
-            const label  = mode === 'light' ? 'Light' : 'Dark';
+          {(['light', 'dark', 'system'] as const).map(m => {
+            const active = mode === m;
+            const icon   = m === 'light' ? '☀︎' : m === 'dark' ? '☾︎' : '◐';
+            const label  = m === 'light' ? 'Light' : m === 'dark' ? 'Dark' : 'Auto';
             return (
               <TouchableOpacity
-                key={mode}
+                key={m}
                 style={[styles.themeBtn, active && styles.themeBtnActive]}
-                onPress={() => setMode(mode)}
+                onPress={() => setMode(m)}
                 activeOpacity={0.7}
               >
                 <Text style={[styles.themeIcon, active && styles.themeIconActive]}>{icon}</Text>

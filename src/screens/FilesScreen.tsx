@@ -24,6 +24,8 @@ type GHFile = {
   type: 'file' | 'dir';
 };
 
+const SIZE_LIMIT = 48 * 1024 * 1024; // 48 MB
+
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 function fmtSize(bytes: number): string {
@@ -87,25 +89,43 @@ export default function FilesScreen() {
   const [uploading,  setUploading]  = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error,      setError]      = useState<string | null>(null);
+  const [currentPath, setCurrentPath] = useState('');   // '' = files/ root
 
   const C = useColors();
   const styles = React.useMemo(() => makeStyles(C), [C]);
 
-  const loadFiles = useCallback(async () => {
+  const loadFiles = useCallback(async (path = currentPath) => {
     try {
       setError(null);
       const config = await loadConfig();
-      const list   = await fetchFilesList(config);
+      const list   = await fetchFilesList(config, path);
       setFiles(
-        list.filter(f => f.type === 'file')
-            .sort((a, b) => a.name.localeCompare(b.name))
+        (list as GHFile[])
+            .filter(f => f.name !== '.gitkeep')
+            .sort((a, b) => {
+              if (a.type !== b.type) return a.type === 'dir' ? -1 : 1;  // folders first
+              return a.name.localeCompare(b.name);
+            })
       );
     } catch (e: any) {
       setError(e.message);
     }
-  }, []);
+  }, [currentPath]);
 
-  useEffect(() => { loadFiles().finally(() => setLoading(false)); }, []);
+  useEffect(() => {
+    setLoading(true);
+    loadFiles(currentPath).finally(() => setLoading(false));
+  }, [currentPath]);
+
+  function enterFolder(folder: GHFile) {
+    setCurrentPath(currentPath ? `${currentPath}/${folder.name}` : folder.name);
+  }
+
+  function goUp() {
+    const parts = currentPath.split('/');
+    parts.pop();
+    setCurrentPath(parts.join('/'));
+  }
 
   async function onRefresh() {
     setRefreshing(true);
@@ -166,6 +186,10 @@ export default function FilesScreen() {
       });
       if (result.canceled || !result.assets?.[0]) return;
       const a = result.assets[0];
+      if (a.size && a.size > SIZE_LIMIT) {
+        Alert.alert('File too large', 'File attached is larger than 48 Mb and will not be synced.');
+        return;
+      }
       await doUpload(a.uri, a.name);
     } catch {
       // user dismissed
@@ -180,12 +204,16 @@ export default function FilesScreen() {
     }
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        mediaTypes: ['images', 'videos'] as any,
         quality: 0.9,
       });
       if (result.canceled || !result.assets?.[0]) return;
       const asset    = result.assets[0];
       const filename = asset.fileName ?? asset.uri.split('/').pop() ?? `photo_${Date.now()}.jpg`;
+      if (asset.fileSize && asset.fileSize > SIZE_LIMIT) {
+        Alert.alert('File too large', 'File attached is larger than 48 Mb and will not be synced.');
+        return;
+      }
       await doUpload(asset.uri, filename);
     } catch {
       // user dismissed
@@ -197,8 +225,8 @@ export default function FilesScreen() {
     try {
       const config  = await loadConfig();
       const base64  = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
-      const existing = files.find(f => f.name === filename);
-      await uploadFile(config, filename, base64, existing?.sha);
+      const existing = files.find(f => f.name === filename && f.type === 'file');
+      await uploadFile(config, filename, base64, existing?.sha, currentPath);
       await loadFiles();
       Alert.alert('Uploaded', `"${filename}" uploaded successfully.`);
     } catch (e: any) {
@@ -253,26 +281,40 @@ export default function FilesScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.brand} colors={[C.brand]} />
         }
         contentContainerStyle={styles.list}
-        ListHeaderComponent={error ? (
-          <View style={styles.errorCard}>
-            <Text style={styles.errorText}>⚠ {error}</Text>
-          </View>
-        ) : null}
+        ListHeaderComponent={
+          <>
+            {currentPath ? (
+              <TouchableOpacity style={styles.upRow} onPress={goUp} activeOpacity={0.7}>
+                <Text style={styles.upArrow}>‹</Text>
+                <Text style={styles.upLabel} numberOfLines={1}>{currentPath}</Text>
+              </TouchableOpacity>
+            ) : null}
+            {error ? (
+              <View style={styles.errorCard}>
+                <Text style={styles.errorText}>⚠ {error}</Text>
+              </View>
+            ) : null}
+          </>
+        }
         ListEmptyComponent={!error ? (
           <Text style={styles.emptyText}>No files in repository.{'\n'}Pull down to refresh.</Text>
         ) : null}
         renderItem={({ item }) => (
           <View style={styles.card}>
-            <TouchableOpacity style={styles.fileInfo} onPress={() => openFile(item)} activeOpacity={0.7}>
-              <View style={styles.fileIconWrap}>
-                <Text style={styles.fileTypeLabel}>{fileLabel(item.name)}</Text>
+            <TouchableOpacity
+              style={styles.fileInfo}
+              onPress={() => item.type === 'dir' ? enterFolder(item) : openFile(item)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.fileIconWrap, item.type === 'dir' && styles.folderIconWrap]}>
+                <Text style={styles.fileTypeLabel}>{item.type === 'dir' ? 'DIR' : fileLabel(item.name)}</Text>
               </View>
               <View style={styles.fileMeta}>
                 <Text style={styles.fileName} numberOfLines={2}>{item.name}</Text>
-                <Text style={styles.fileSize}>{fmtSize(item.size)}</Text>
+                {item.type === 'file' && <Text style={styles.fileSize}>{fmtSize(item.size)}</Text>}
               </View>
             </TouchableOpacity>
-            {deletingId === item.sha
+            {item.type === 'file' && (deletingId === item.sha
               ? <ActivityIndicator size="small" color={C.error} style={{ marginLeft: 12 }} />
               : (
                 <TouchableOpacity
@@ -283,7 +325,7 @@ export default function FilesScreen() {
                   <TrashIcon color={C.textMuted} />
                 </TouchableOpacity>
               )
-            }
+            )}
           </View>
         )}
       />
@@ -299,6 +341,13 @@ function makeStyles(C: ColorsType) {
     center:        { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg },
     loadingText:   { marginTop: 12, color: C.textMuted, fontSize: 14 },
     list:          { padding: SP.sm, paddingBottom: SP.xl },
+
+    upRow:         { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surfaceAlt,
+                     borderRadius: R.md, marginBottom: SP.sm,
+                     paddingHorizontal: SP.md, paddingVertical: SP.sm },
+    upArrow:       { fontSize: 20, fontWeight: '700', color: C.brand, marginRight: 10, marginTop: -2 },
+    upLabel:       { fontSize: 13, fontWeight: '600', color: C.textSub, flex: 1 },
+    folderIconWrap:{ backgroundColor: C.brand + '22', borderColor: C.brand },
 
     errorCard:     { backgroundColor: '#FFF5F5', borderRadius: R.sm, padding: SP.md, marginBottom: SP.sm },
     errorText:     { color: C.error, fontSize: 13, fontWeight: '500' },
