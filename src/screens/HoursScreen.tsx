@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
 import { useNotes } from '../services/notesContext';
 import { loadConfig } from '../services/storage';
-import { DEFAULT_CONFIG, Employee } from '../config/defaults';
+import { resolveEmployees } from '../services/employees';
+import { Employee } from '../config/defaults';
 import SyncBar from '../components/SyncBar';
 import { useColors } from '../services/themeContext';
 import { calcDayHours, fmtHours, DayData, DayHours } from '../services/hours';
@@ -90,15 +91,19 @@ function makeBottleStyles(C: ColorsType) {
 
 export default function HoursScreen() {
   const { notes, loading, error, lastSync, refresh } = useNotes();
-  const [employees, setEmployees] = useState<Employee[]>(DEFAULT_CONFIG.employees);
+  const [named, setNamed] = useState<Employee[]>([]);
   const [weekStart, setWeekStart] = useState(() => getMondayOf(new Date()));
 
   const C = useColors();
   const styles = React.useMemo(() => makeStyles(C), [C]);
 
   useEffect(() => {
-    loadConfig().then(c => setEmployees(c.employees));
+    loadConfig().then(c => setNamed(c.employees));
   }, []);
+
+  // Anyone with hours in the synced data appears, named if the user has named
+  // them and by MAC tail otherwise — nothing is bundled with the app.
+  const employees = useMemo(() => resolveEmployees(named, notes), [named, notes]);
 
   const hoursMap: HoursMap = (notes as any).workingHours ?? {};
   const todayStr = toDateStr(new Date());

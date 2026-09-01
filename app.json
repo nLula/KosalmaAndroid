@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kosalma",
     "slug": "kosalma",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./KosalmaIcons/playstore.png",
     "userInterfaceStyle": "automatic",
@@ -11,13 +11,16 @@
     },
     "android": {
       "package": "com.nlula.kosalma",
-      "versionCode": 2,
+      "versionCode": 3,
       "icon": "./KosalmaIcons/playstore.png",
       "adaptiveIcon": {
         "foregroundImage": "./KosalmaIcons/playstore.png",
         "backgroundColor": "#FFFFFF"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "runtimeVersion": {
+        "policy": "fingerprint"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -31,6 +34,9 @@
       "expo-secure-store",
       "expo-sharing",
       "expo-status-bar"
-    ]
+    ],
+    "updates": {
+      "url": "https://u.expo.dev/279b3b7d-c251-4fd4-97d2-8c7ed458929b"
+    }
   }
 }

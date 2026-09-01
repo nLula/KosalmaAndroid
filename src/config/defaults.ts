@@ -1,10 +1,12 @@
+// Defaults baked into the app bundle.
+//
+// Nothing personal or secret belongs here: anything in this file ends up
+// readable inside the distributed APK. Employees are discovered from the synced
+// data and named by the user (services/employees.ts), and the GitHub token is
+// entered once per device and kept in the OS keystore (services/storage.ts).
+// Only non-sensitive setup hints live here.
 export const DEFAULT_CONFIG = {
-  employees: [
-    { name: 'Roman',  mac: 'C3:00:00:4B:05:94' },
-    { name: 'Viktor', mac: 'C3:00:00:4B:05:99' },
-    { name: 'Dmitri', mac: 'C3:00:00:4B:05:96' },
-    { name: 'KIA',    mac: 'C3:00:00:4B:05:9A' },
-  ],
+  employees: [] as Employee[],
   github: {
     pat:   '',
     owner: 'KosalmaTln',
@@ -17,4 +19,4 @@ export const DEFAULT_CONFIG = {
 };
 
 export type Employee = { name: string; mac: string };
-export type AppConfig = typeof DEFAULT_CONFIG;
+export type AppConfig = Omit<typeof DEFAULT_CONFIG, 'employees'> & { employees: Employee[] };

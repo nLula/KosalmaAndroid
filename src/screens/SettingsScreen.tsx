@@ -2,6 +2,8 @@ import React, { useEffect, useState, useCallback, useLayoutEffect } from 'react'
 import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { loadConfig, saveConfig } from '../services/storage';
+import { useNotes } from '../services/notesContext';
+import { resolveEmployees, isUnnamed } from '../services/employees';
 import { DEFAULT_CONFIG, AppConfig } from '../config/defaults';
 import { useColors, useThemeCtx } from '../services/themeContext';
 import { S, R, SP, ColorsType } from '../theme';
@@ -15,11 +17,15 @@ export default function SettingsScreen() {
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
   const [saved,  setSaved]  = useState(false);
 
+  const { notes } = useNotes();
+
   useEffect(() => {
     loadConfig().then(cfg => {
-      setConfig(cfg);
+      // Show every beacon that has synced hours, not just the ones already
+      // named, so a fresh install has something to put names against.
+      setConfig({ ...cfg, employees: resolveEmployees(cfg.employees, notes) });
     });
-  }, []);
+  }, [notes]);
 
   function updateEmployeeName(index: number, name: string) {
     const employees = [...config.employees];
@@ -68,14 +74,20 @@ export default function SettingsScreen() {
 
       <Text style={styles.section}>Employees</Text>
       <View style={styles.card}>
-        {config.employees.map((emp, i) => (
+        {config.employees.length === 0 ? (
+          <Text style={styles.hint}>
+            No beacons found yet. Set your token and repository below, then pull to
+            refresh on the Hours tab — anyone with recorded hours will appear here
+            to be named.
+          </Text>
+        ) : config.employees.map((emp, i) => (
           <View key={emp.mac} style={[styles.fieldRow, i > 0 && styles.fieldSep]}>
             <Text style={styles.mac}>{emp.mac}</Text>
             <TextInput
               style={styles.input}
-              value={emp.name}
+              value={isUnnamed(emp) ? '' : emp.name}
               onChangeText={name => updateEmployeeName(i, name)}
-              placeholder="Name"
+              placeholder={`Name for ${emp.mac}`}
               placeholderTextColor={C.textHint}
             />
           </View>

@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { DEFAULT_CONFIG, AppConfig } from '../config/defaults';
-import { PAT as BUNDLED_PAT } from '../config/secrets';
 
 const KEYS = {
   CONFIG:       'kosalma_config',
@@ -14,13 +13,15 @@ const KEYS = {
 // ─── PAT helpers ─────────────────────────────────────────────────────────────
 
 async function loadPat(): Promise<string> {
+  // The token lives only in the OS keystore, put there by the user in Settings.
+  // Nothing is seeded from the bundle — see config/secrets.ts for why. A token
+  // stored by an earlier version is still found here, so updating the app does
+  // not make anyone re-enter it.
   try {
-    const stored = await SecureStore.getItemAsync(KEYS.PAT);
-    if (stored) return stored;
-    // First launch: seed SecureStore from the bundled secrets file (gitignored)
-    if (BUNDLED_PAT) await SecureStore.setItemAsync(KEYS.PAT, BUNDLED_PAT);
-    return BUNDLED_PAT;
-  } catch { return BUNDLED_PAT; }
+    return (await SecureStore.getItemAsync(KEYS.PAT)) ?? '';
+  } catch {
+    return '';
+  }
 }
 
 async function savePat(pat: string): Promise<void> {
@@ -35,18 +36,14 @@ export async function loadConfig(): Promise<AppConfig> {
     loadPat(),
   ]);
 
+  // Anything the user has saved wins over the defaults, so an app update never
+  // overwrites their settings; defaults only fill in keys they have never set.
   const base: AppConfig = raw ? { ...DEFAULT_CONFIG, ...JSON.parse(raw) } : { ...DEFAULT_CONFIG };
-  base.github = { ...base.github, pat };
+  base.github = { ...DEFAULT_CONFIG.github, ...base.github, pat };
 
-  // Preserve DEFAULT_CONFIG employee order (by MAC)
-  if (Array.isArray(base.employees)) {
-    const macOrder = DEFAULT_CONFIG.employees.map(e => e.mac);
-    base.employees = [...base.employees].sort((a, b) => {
-      const ia = macOrder.indexOf(a.mac);
-      const ib = macOrder.indexOf(b.mac);
-      return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
-    });
-  }
+  if (!Array.isArray(base.employees)) base.employees = [];
+  base.employees = [...base.employees].sort((a, b) =>
+    (a.name || a.mac).localeCompare(b.name || b.mac));
 
   return base;
 }
