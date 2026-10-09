@@ -30,21 +30,28 @@ export type DayHours = {
 /**
  * Unpaid lunch minutes for a shift of the given clock length.
  *
- * Lunch applies only to the middle of the range: nothing under 4h (too short
- * for a break), 30 minutes from 4h to 10h, nothing over 10h (long shifts keep
- * their full time). Both edges ramp over 30 minutes rather than switching all
- * at once, because a hard switch creates a pay cliff at the boundary — at 4h it
- * would cost 29 minutes to work one minute longer, and at 10h it would hand out
- * 31 free minutes for one extra minute.
+ * Nothing is deducted up to 4h (too short for a break) or from 10h upward
+ * (long shifts are paid in full — a 10h15 shift pays 10h15). In between, 30
+ * minutes of lunch is unpaid.
+ *
+ * Neither edge may switch all at once, because a hard switch creates a pay
+ * cliff: at 4h one extra minute would cost 29 minutes, at 10h it would hand out
+ * 31. So each edge ramps over 30 minutes, and both ramps sit INSIDE 4h-10h:
+ *
+ *   4h00 -> 4h30   lunch phases in   (paid holds at 4h00)
+ *   9h30 -> 10h00  lunch phases out  (paid climbs 2 min per minute)
+ *
+ * The outer ramp must finish at 10h00, not start there, or shifts just over
+ * 10h would still lose part of their lunch.
  */
 export function lunchDeduction(totalShiftMinutes: number): number {
   if (totalShiftMinutes <= LUNCH_THRESHOLD_MINUTES) return 0;
-  if (totalShiftMinutes <= NO_LUNCH_THRESHOLD_MINUTES) {
-    // ramp in: 0 at 4h00, full 30 min from 4h30 onward
-    return Math.min(LUNCH_MINUTES, totalShiftMinutes - LUNCH_THRESHOLD_MINUTES);
-  }
-  // ramp out: full 30 min at 10h00, 0 from 10h30 onward
-  return Math.max(0, LUNCH_MINUTES - (totalShiftMinutes - NO_LUNCH_THRESHOLD_MINUTES));
+  if (totalShiftMinutes >= NO_LUNCH_THRESHOLD_MINUTES) return 0;
+  return Math.min(
+    LUNCH_MINUTES,
+    totalShiftMinutes - LUNCH_THRESHOLD_MINUTES,    // ramp in after 4h00
+    NO_LUNCH_THRESHOLD_MINUTES - totalShiftMinutes, // ramp out by 10h00
+  );
 }
 
 /** Minutes actually paid for a shift of the given clock length. */

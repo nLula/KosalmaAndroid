@@ -56,21 +56,34 @@ function Bottle({ hours, C }: { hours: DayHours; C: ColorsType }) {
   if (hours.total === 0) {
     return <View style={bottle.outer}><View style={bottle.markers} /></View>;
   }
-  const regW = Math.min(COL_BOTTLE - 2, (hours.regular / 8) * (COL_BOTTLE - 2));
-  const otW  = Math.min(COL_BOTTLE - 2 - regW, (hours.overtime / 4) * (COL_BOTTLE - 2));
+  const W = COL_BOTTLE - 2;
   const hasOT = hours.overtime > 0;
-  const label = hasOT
-    ? `${fmtH(hours.regular)}+${fmtH(hours.overtime)}`
-    : fmtH(hours.total);
+
+  // On a weekend or public holiday every hour is overtime, but the bar is
+  // filled the same as any ordinary day — it is the figures that turn red, not
+  // the bottle. Drawing it from the overtime fill would paint the whole thing.
+  const regW = hours.isOvertimeDay
+    ? Math.min(W, (hours.total / 8) * W)
+    : Math.min(W, (hours.regular / 8) * W);
+  const otW = hours.isOvertimeDay
+    ? 0
+    : Math.min(W - regW, (hours.overtime / 4) * W);
 
   return (
     <View style={bottle.outer}>
       {[0.25, 0.5, 0.75].map(f => (
-        <View key={f} style={[bottle.marker, { left: (COL_BOTTLE - 2) * f }]} />
+        <View key={f} style={[bottle.marker, { left: W * f }]} />
       ))}
       {regW > 0 && <View style={[bottle.fillReg, { width: regW }]} />}
       {otW  > 0 && <View style={[bottle.fillOT,  { width: otW, left: regW }]} />}
-      <Text style={[bottle.label, hasOT && bottle.labelOT]} numberOfLines={1}>{label}</Text>
+      <Text style={bottle.label} numberOfLines={1}>
+        {hours.isOvertimeDay
+          ? <Text style={bottle.labelOT}>{fmtH(hours.total)}</Text>
+          : hasOT
+            // Only the overtime part is red; the first 8 hours are ordinary pay
+            ? <>{fmtH(hours.regular)}<Text style={bottle.labelOT}>+{fmtH(hours.overtime)}</Text></>
+            : fmtH(hours.total)}
+      </Text>
     </View>
   );
 }
@@ -83,7 +96,7 @@ function makeBottleStyles(C: ColorsType) {
     fillReg: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,169,157,0.45)', borderRadius: R.xs },
     fillOT:  { position: 'absolute', top: 0, bottom: 0, backgroundColor: '#dc2626aa', borderRadius: R.xs },
     label:   { position: 'relative', zIndex: 5, fontSize: 8, fontWeight: '700', color: C.textSub },
-    labelOT: { color: '#900' },
+    labelOT: { color: C.overtime },
   });
 }
 

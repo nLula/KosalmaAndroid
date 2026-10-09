@@ -22,22 +22,31 @@ export function shortMac(mac: string): string {
  * Saved names always win. A MAC that has hours but no name yet is included and
  * labelled by its tail, so a freshly installed app still shows everyone's hours
  * immediately instead of an empty table.
+ *
+ * The configured order is preserved exactly — it is the column order on the
+ * Hours screen and the user arranges it in Settings, so nothing here may sort
+ * it. Newly discovered beacons are appended at the end, where they are easy to
+ * notice and move.
  */
 export function resolveEmployees(configured: Employee[], notes: any): Employee[] {
   const named = Array.isArray(configured) ? configured : [];
-  const byMac = new Map<string, Employee>();
+  const seen = new Set<string>();
+  const out: Employee[] = [];
 
   named.forEach(e => {
-    if (e && e.mac) byMac.set(e.mac, { mac: e.mac, name: e.name || shortMac(e.mac) });
+    if (!e || !e.mac || seen.has(e.mac)) return;
+    seen.add(e.mac);
+    out.push({ mac: e.mac, name: e.name || shortMac(e.mac) });
   });
 
   const hours = (notes && notes.workingHours) || {};
-  Object.keys(hours).forEach(mac => {
-    if (mac === 'lastchanged') return;
-    if (!byMac.has(mac)) byMac.set(mac, { mac, name: shortMac(mac) });
+  Object.keys(hours).sort().forEach(mac => {
+    if (mac === 'lastchanged' || seen.has(mac)) return;
+    seen.add(mac);
+    out.push({ mac, name: shortMac(mac) });
   });
 
-  return [...byMac.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return out;
 }
 
 /** True when this entry is still showing a MAC rather than a real name. */

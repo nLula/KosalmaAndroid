@@ -41,9 +41,9 @@ export async function loadConfig(): Promise<AppConfig> {
   const base: AppConfig = raw ? { ...DEFAULT_CONFIG, ...JSON.parse(raw) } : { ...DEFAULT_CONFIG };
   base.github = { ...DEFAULT_CONFIG.github, ...base.github, pat };
 
+  // The stored order is the user's chosen column order on the Hours screen —
+  // never re-sort it here.
   if (!Array.isArray(base.employees)) base.employees = [];
-  base.employees = [...base.employees].sort((a, b) =>
-    (a.name || a.mac).localeCompare(b.name || b.mac));
 
   return base;
 }

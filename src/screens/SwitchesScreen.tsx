@@ -73,15 +73,23 @@ export default function SwitchesScreen() {
     return state[id]?.position ?? 'unknown';
   }
 
-  async function press(sw: typeof SWITCHES[number]) {
+  // Tapping the handle only ever means "turn it the other way", which requires
+  // knowing which way it currently points. With the position unknown the
+  // handle is disabled and the explicit Open / Close buttons are used instead,
+  // so no direction is ever guessed.
+  async function press(sw: typeof SWITCHES[number], explicitAction?: string) {
     if (remaining(sw.id) > 0) return;
 
-    // One handle, two positions: whichever way it is now, send it the other
-    // way. From open OR unknown we close — the safe direction for a water
-    // valve, and the one that re-establishes a known position.
-    const action = sw.type === 'valve'
-      ? (positionOf(sw.id) === 'closed' ? 'open' : 'close')
-      : 'pulse';
+    let action: string;
+    if (sw.type !== 'valve') {
+      action = 'pulse';
+    } else if (explicitAction) {
+      action = explicitAction;
+    } else {
+      const pos = positionOf(sw.id);
+      if (pos !== 'open' && pos !== 'closed') return;   // unknown: buttons handle it
+      action = pos === 'open' ? 'close' : 'open';
+    }
 
     setBusy(b => ({ ...b, [sw.id]: { until: Date.now() + sw.cooldown * 1000, label: sw.label } }));
     if (sw.type === 'valve') setMoving(m => ({ ...m, [sw.id]: action }));
@@ -165,13 +173,18 @@ export default function SwitchesScreen() {
         const disabled = left > 0;
         const kind = statusKind[sw.id] ?? 'info';
         const message = disabled ? `Ready in ${left}s` : (status[sw.id] ?? '');
+        // Unknown position and not currently moving: the handle cannot express
+        // a direction, so ask for one explicitly.
+        const needsDirection =
+          sw.type === 'valve' && !moving[sw.id] &&
+          positionOf(sw.id) !== 'open' && positionOf(sw.id) !== 'closed';
 
         return (
           <View key={sw.id} style={styles.card}>
             {sw.type === 'valve' ? (
               <ValveKnob
                 position={moving[sw.id] ? 'moving' : positionOf(sw.id)}
-                disabled={disabled}
+                disabled={disabled || needsDirection}
                 onPress={() => press(sw)}
                 C={C}
               />
@@ -201,6 +214,31 @@ export default function SwitchesScreen() {
                   ? (moving[sw.id] === 'open' ? 'OPENING' : 'CLOSING')
                   : positionOf(sw.id).toUpperCase()}
               </Text>
+            )}
+
+            {needsDirection && (
+              <View style={styles.choiceRow}>
+                <TouchableOpacity
+                  style={[styles.choiceBtn, styles.choiceOpen, disabled && styles.choiceOff]}
+                  onPress={() => press(sw, 'open')}
+                  disabled={disabled}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.choiceText, { color: GREEN }, disabled && styles.choiceTextOff]}>
+                    OPEN
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.choiceBtn, styles.choiceClose, disabled && styles.choiceOff]}
+                  onPress={() => press(sw, 'close')}
+                  disabled={disabled}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.choiceText, { color: RED }, disabled && styles.choiceTextOff]}>
+                    CLOSE
+                  </Text>
+                </TouchableOpacity>
+              </View>
             )}
 
             {!!message && (
@@ -284,6 +322,17 @@ function makeStyles(C: ColorsType) {
                   paddingVertical: SP.lg, alignItems: 'center', ...S.sm },
     cardTitle:  { fontSize: 15, fontWeight: '600', color: C.text, marginTop: 10 },
     position:   { fontSize: 11, fontWeight: '700', letterSpacing: 1, marginTop: 3, color: C.textMuted },
+
+    // Only shown while the position is unknown
+    choiceRow:  { flexDirection: 'row', gap: 10, marginTop: 8 },
+    choiceBtn:  { minWidth: 78, paddingVertical: 7, paddingHorizontal: 12,
+                  borderRadius: R.sm, borderWidth: 1.5, alignItems: 'center',
+                  backgroundColor: C.surface },
+    choiceOpen: { borderColor: GREEN },
+    choiceClose:{ borderColor: RED },
+    choiceOff:  { borderColor: C.border },
+    choiceText: { fontSize: 11, fontWeight: '700', letterSpacing: 1 },
+    choiceTextOff: { color: C.textMuted },
     status:     { fontSize: 11, color: C.textMuted, marginTop: 6, textAlign: 'center',
                   paddingHorizontal: SP.md, lineHeight: 15 },
 
